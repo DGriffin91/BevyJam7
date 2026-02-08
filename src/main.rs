@@ -258,22 +258,31 @@ fn window_control(keyboard_input: Res<ButtonInput<KeyCode>>, mut window: Single<
     }
 }
 
+#[cfg(feature = "dev")]
 fn drag_drop_gltf(
     mut drag_and_drop_reader: MessageReader<FileDragAndDrop>,
     asset_server: Res<AssetServer>,
     mut commands: Commands,
+    mut added: Local<bevy::platform::collections::HashSet<std::path::PathBuf>>,
 ) {
     for e in drag_and_drop_reader.read() {
         match e {
             FileDragAndDrop::DroppedFile { path_buf, .. } => {
-                let path = path_buf.to_string_lossy().to_string();
-                commands
-                    .spawn(SceneRoot(
-                        asset_server.load(GltfAssetLabel::Scene(0).from_asset(path)),
-                    ))
-                    .observe(blender_cascades);
+                if added.insert(path_buf.clone()) {
+                    let path = relative_to_assets(&path_buf).unwrap();
+                    commands
+                        .spawn(SceneRoot(
+                            asset_server.load(GltfAssetLabel::Scene(0).from_asset(path)),
+                        ))
+                        .observe(blender_cascades);
+                }
             }
             _ => (),
         }
     }
+}
+
+#[cfg(feature = "dev")]
+fn relative_to_assets(path: &std::path::Path) -> Option<std::path::PathBuf> {
+    pathdiff::diff_paths(path, std::env::current_dir().ok()?.join("assets"))
 }
