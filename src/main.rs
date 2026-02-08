@@ -385,10 +385,8 @@ pub fn standard_material_render(
             let images = world.resource::<GpuImages>();
             ctx.bind_uniforms_set(images, &cascades[draw.cascade_idx as usize]);
 
-            reflect_bool_location.clone().map(|loc| {
-                (draw.read_reflect && phase.read_reflect() && reflect_uniforms.is_some())
-                    .load(&ctx.gl, &loc)
-            });
+            if let Some(loc) = reflect_bool_location { (draw.read_reflect && phase.read_reflect() && reflect_uniforms.is_some())
+                    .load(&ctx.gl, &loc) }
 
             // Only re-bind if the material has changed.
             if last_material != Some(draw.material_h) {
