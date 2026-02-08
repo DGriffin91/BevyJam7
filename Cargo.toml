@@ -42,6 +42,7 @@ wgpu-types = "27" #Needed for bevy interop types since bevy doesn't re-export ev
 uniform_set_derive = { path = "../../../../opengl/bevy_opengl/uniform_set_derive" }
 bgl2 = { path = "../../../../opengl/bevy_opengl" }
 glow = "0.16"
+bytemuck = "1.24"
 
 light_volume_baker = { path = "../light_volume_baker", optional = true }
 

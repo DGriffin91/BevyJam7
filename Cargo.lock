@@ -11,6 +11,7 @@ dependencies = [
  "bevy_egui",
  "bevy_mod_mipmap_generator",
  "bgl2",
+ "bytemuck",
  "egui_glow",
  "glow",
  "image",

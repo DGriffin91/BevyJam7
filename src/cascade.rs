@@ -23,23 +23,24 @@ struct ProbeBakeExtras {
     probe_bake_res: Option<Vec<f32>>,
 
     #[serde(flatten)]
-    other: HashMap<String, serde_json::Value>,
+    _other: HashMap<String, serde_json::Value>,
 }
 
 pub fn blender_cascades(
     scene_ready: On<SceneInstanceReady>,
     mut commands: Commands,
     children: Query<&Children>,
-    gltf_extras: Query<(Entity, &GlobalTransform, &Name, &GltfExtras)>,
+    gltf_extras: Query<(Entity, &Name, &Transform, &GltfExtras)>,
 ) {
     for entity in children.iter_descendants(scene_ready.entity) {
-        if let Ok((entity, trans, name, extras)) = gltf_extras.get(entity) {
+        if let Ok((entity, name, trans, extras)) = gltf_extras.get(entity) {
             if name.contains("BAKE") {
                 let extras: ProbeBakeExtras = serde_json::from_str(&extras.value).unwrap();
                 if let Some(bake_res) = extras.probe_bake_res {
-                    let scale: Vec3A = trans.scale().into();
-                    let start = trans.translation_vec3a() - scale;
-                    let end = trans.translation_vec3a() + scale;
+                    let scale: Vec3A = trans.scale.into();
+                    let position = trans.translation.to_vec3a();
+                    let start = position - scale;
+                    let end = position + scale;
                     commands
                         .entity(entity)
                         .insert(CascadeInput {

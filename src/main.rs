@@ -1,4 +1,5 @@
 pub mod cascade;
+pub mod draw_debug;
 pub mod std_mat_render;
 
 use std::f32::consts::PI;
@@ -38,8 +39,10 @@ use light_volume_baker::{
     softbuffer_plugin::SoftBufferPlugin,
 };
 
+#[cfg(feature = "dev")]
 use crate::{
     cascade::{CascadeInput, ConvertCascadePlugin, blender_cascades},
+    draw_debug::DrawDebugPlugin,
     std_mat_render::standard_material_render,
 };
 
@@ -133,6 +136,7 @@ fn main() {
                 GlowEguiPlugin::default(),
                 OpenGLRenderPlugins,
                 OpenGLStandardLightingPlugin,
+                DrawDebugPlugin,
             ))
             .add_systems(
                 PostUpdate,
@@ -202,7 +206,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, args: Res<Args>
             shadow_normal_bias: 0.0,
             ..default()
         },
-        ShadowBounds::cube(250.0),
+        ShadowBounds::cube(if args.temple { 250.0 } else { 50.0 }),
     ));
 
     // Camera
