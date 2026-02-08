@@ -1,10 +1,10 @@
 pub mod cascade;
+pub mod std_mat_render;
 
 use std::f32::consts::PI;
 
 use argh::FromArgs;
 use bevy::{
-    camera::primitives::Aabb,
     camera_controller::free_camera::{FreeCamera, FreeCameraPlugin},
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     light::light_consts::lux::DIRECT_SUNLIGHT,
@@ -14,30 +14,16 @@ use bevy::{
     winit::WinitSettings,
 };
 use bevy_mod_mipmap_generator::{MipmapGeneratorPlugin, generate_mipmaps};
+use bgl2::render::register_render_system;
 use bgl2::{
-    UniformSet, UniformValue,
-    bevy_standard_lighting::{OpenGLStandardLightingPlugin, StandardLightingUniforms},
+    bevy_standard_lighting::OpenGLStandardLightingPlugin,
     bevy_standard_material::{
-        DrawsSortedByMaterial, ReadReflection, SkipReflection, StandardMaterialUniforms,
-        ViewUniforms, init_std_shader_includes, sort_std_mat_by_material,
+        DrawsSortedByMaterial, init_std_shader_includes, sort_std_mat_by_material,
         standard_material_prepare_view,
     },
-    command_encoder::CommandEncoder,
-    flip_cull_mode,
-    phase_shadow::{DirectionalLightShadow, ShadowBounds},
-    phase_transparent::DeferredAlphaBlendDraws,
-    plane_reflect::ReflectionUniforms,
-    prepare_image::GpuImages,
-    prepare_joints::JointData,
-    prepare_mesh::GpuMeshes,
-    render::{
-        OpenGLRenderPlugins, RenderPhase, RenderSet, register_prepare_system,
-        set_blend_func_from_alpha_mode, transparent_draw_from_alpha_mode,
-    },
-    shader_cached,
+    phase_shadow::ShadowBounds,
+    render::{OpenGLRenderPlugins, RenderSet, register_prepare_system},
 };
-use bgl2::{bevy_standard_lighting::DEFAULT_MAX_LIGHTS_DEF, render::register_render_system};
-use itertools::Either;
 
 #[cfg(feature = "asset_baking")]
 use light_volume_baker::{
@@ -47,7 +33,10 @@ use light_volume_baker::{
     softbuffer_plugin::SoftBufferPlugin,
 };
 
-use crate::cascade::{CascadeInput, CascadeUniform, generate_cascade_data, select_cascade};
+use crate::{
+    cascade::{CascadeInput, generate_cascade_data},
+    std_mat_render::standard_material_render,
+};
 
 #[derive(FromArgs, Resource, Clone, Default)]
 /// Config
@@ -201,202 +190,6 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         //GltfAssetLabel::Scene(0).from_asset("testing/models/temple/temple.gltf"),
         GltfAssetLabel::Scene(0).from_asset("testing/models/temple_test/temple_test.gltf"),
     )));
-}
-
-pub fn standard_material_render(
-    mesh_entities: Query<(
-        Entity,
-        &ViewVisibility,
-        &GlobalTransform,
-        &Mesh3d,
-        &Aabb,
-        &MeshMaterial3d<StandardMaterial>,
-        Has<SkipReflection>,
-        Has<ReadReflection>,
-        Option<&JointData>,
-    )>,
-    view_uniforms: Single<&ViewUniforms>,
-    materials: Res<Assets<StandardMaterial>>,
-    phase: Res<RenderPhase>,
-    mut transparent_draws: ResMut<DeferredAlphaBlendDraws>,
-    reflect_uniforms: Option<Res<ReflectionUniforms>>,
-    sorted: Res<DrawsSortedByMaterial>,
-    mut enc: ResMut<CommandEncoder>,
-    shadow: Option<Res<DirectionalLightShadow>>,
-    cascades: Query<&CascadeUniform>,
-) {
-    let view_uniforms = view_uniforms.clone();
-    if cascades.iter().len() == 0 {
-        warn!("No cascades");
-        return; // TODO support no cascades
-    }
-
-    let phase = *phase;
-
-    let iter = if phase.transparent() {
-        Either::Right(mesh_entities.iter_many(transparent_draws.take()))
-    } else {
-        Either::Left(mesh_entities.iter_many(&**sorted))
-    };
-
-    struct Draw {
-        world_from_local: Mat4,
-        joint_data: Option<JointData>,
-        material_h: AssetId<StandardMaterial>,
-        material_idx: u32,
-        read_reflect: bool,
-        mesh: Handle<Mesh>,
-        cascade_idx: u32,
-    }
-
-    let mut draws = Vec::new();
-    let mut render_materials: Vec<StandardMaterialUniforms> = Vec::new();
-
-    let mut last_material = None;
-    let mut current_material_idx = 0;
-    for (
-        entity,
-        view_vis,
-        transform,
-        mesh,
-        aabb,
-        material_h,
-        skip_reflect,
-        read_reflect,
-        joint_data,
-    ) in iter
-    {
-        if (phase.can_use_camera_frustum_cull() && !view_vis.get())
-            || (skip_reflect && phase.reflection())
-        {
-            continue;
-        }
-
-        let Some(material) = materials.get(material_h) else {
-            continue;
-        };
-
-        let world_from_local = transform.to_matrix();
-
-        // If in opaque phase we must defer any alpha blend draws so they can be sorted and run in order.
-        if !transparent_draws.maybe_defer::<StandardMaterial>(
-            transparent_draw_from_alpha_mode(&material.alpha_mode),
-            phase,
-            entity,
-            transform,
-            aabb,
-            &view_uniforms.view_from_world,
-            &world_from_local,
-        ) {
-            continue;
-        }
-
-        if last_material != Some(material_h) {
-            current_material_idx = render_materials.len() as u32;
-            last_material = Some(material_h);
-            render_materials.push(material.into());
-        }
-
-        let ws_radius = transform.radius_vec3a(aabb.half_extents);
-        let ws_center = world_from_local.transform_point3a(aabb.center);
-        let draw_aabb = obvhs::aabb::Aabb::new(ws_center, Vec3A::splat(ws_radius));
-
-        draws.push(Draw {
-            // TODO don't copy full material
-            material_idx: current_material_idx,
-            world_from_local,
-            joint_data: joint_data.cloned(),
-            material_h: material_h.id(),
-            read_reflect,
-            mesh: mesh.0.clone(),
-            cascade_idx: select_cascade(cascades, draw_aabb),
-        });
-    }
-
-    let reflect_uniforms = reflect_uniforms.as_deref().cloned();
-
-    let shadow = shadow.as_deref().cloned();
-
-    let cascades = cascades.iter().cloned().collect::<Vec<_>>();
-    enc.record(move |ctx, world| {
-        let lighting_uniforms = world.resource::<StandardLightingUniforms>().clone();
-        #[allow(unexpected_cfgs)]
-        let shader_index = shader_cached!(
-            ctx,
-            "../assets/shaders/temple_mat.vert",
-            "../assets/shaders/temple_mat.frag",
-            [DEFAULT_MAX_LIGHTS_DEF]
-                .iter()
-                .chain(
-                    lighting_uniforms
-                        .shader_defs(true, shadow.is_some(), &phase)
-                        .iter()
-                )
-                .chain(phase.shader_defs().iter()),
-            &[
-                ViewUniforms::bindings(),
-                StandardMaterialUniforms::bindings(),
-                StandardLightingUniforms::bindings(),
-                CascadeUniform::bindings(),
-            ]
-        )
-        .unwrap();
-
-        world.resource_mut::<GpuMeshes>().reset_mesh_bind_cache();
-        ctx.use_cached_program(shader_index);
-
-        ctx.map_uniform_set_locations::<ViewUniforms>();
-        ctx.map_uniform_set_locations::<StandardMaterialUniforms>();
-        ctx.map_uniform_set_locations::<CascadeUniform>();
-        ctx.bind_uniforms_set(
-            world.resource::<GpuImages>(),
-            world.resource::<ViewUniforms>(),
-        );
-
-        let mut reflect_bool_location = None;
-        if !phase.depth_only() {
-            ctx.map_uniform_set_locations::<StandardLightingUniforms>();
-            ctx.bind_uniforms_set(world.resource::<GpuImages>(), &lighting_uniforms);
-
-            reflect_bool_location = ctx.get_uniform_location("read_reflection");
-            ctx.map_uniform_set_locations::<ReflectionUniforms>();
-            ctx.bind_uniforms_set(
-                world.resource::<GpuImages>(),
-                reflect_uniforms.as_ref().unwrap_or(&Default::default()),
-            );
-        }
-
-        let mut last_material = None;
-        for draw in &draws {
-            let material = &render_materials[draw.material_idx as usize];
-            set_blend_func_from_alpha_mode(&ctx.gl, &material.alpha_mode);
-
-            ctx.load("world_from_local", draw.world_from_local);
-
-            if let Some(joint_data) = &draw.joint_data {
-                ctx.load("joint_data", joint_data.as_slice());
-            }
-            ctx.load("has_joint_data", draw.joint_data.is_some());
-
-            let images = world.resource::<GpuImages>();
-            ctx.bind_uniforms_set(images, &cascades[draw.cascade_idx as usize]);
-
-            if let Some(loc) = reflect_bool_location {
-                (draw.read_reflect && phase.read_reflect() && reflect_uniforms.is_some())
-                    .load(&ctx.gl, &loc)
-            }
-
-            // Only re-bind if the material has changed.
-            if last_material != Some(draw.material_h) {
-                ctx.set_cull_mode(flip_cull_mode(material.cull_mode, phase.reflection()));
-                ctx.bind_uniforms_set(world.resource::<GpuImages>(), material);
-            }
-            world
-                .resource_mut::<GpuMeshes>()
-                .draw_mesh(ctx, draw.mesh.id(), shader_index);
-            last_material = Some(draw.material_h);
-        }
-    });
 }
 
 fn window_control(keyboard_input: Res<ButtonInput<KeyCode>>, mut window: Single<&mut Window>) {
