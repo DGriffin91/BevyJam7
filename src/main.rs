@@ -4,6 +4,8 @@ pub mod std_mat_render;
 use std::f32::consts::PI;
 
 use argh::FromArgs;
+#[cfg(feature = "dev")]
+use bevy::camera_controller::free_camera::FreeCameraState;
 use bevy::{
     camera_controller::free_camera::{FreeCamera, FreeCameraPlugin},
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
@@ -13,8 +15,9 @@ use bevy::{
     window::{PresentMode, WindowMode},
     winit::WinitSettings,
 };
+#[cfg(feature = "dev")]
+use bevy_egui::{EguiContexts, EguiPrimaryContextPass, egui};
 use bevy_mod_mipmap_generator::{MipmapGeneratorPlugin, generate_mipmaps};
-use bgl2::render::register_render_system;
 use bgl2::{
     bevy_standard_lighting::OpenGLStandardLightingPlugin,
     bevy_standard_material::{
@@ -24,9 +27,11 @@ use bgl2::{
     phase_shadow::ShadowBounds,
     render::{OpenGLRenderPlugins, RenderSet, register_prepare_system},
 };
+use bgl2::{egui_plugin::GlowEguiPlugin, render::register_render_system};
 
 #[cfg(feature = "asset_baking")]
 use light_volume_baker::{
+    CascadeData,
     cpu_probes::{CpuProbesPlugin, RunProbeDebug},
     pt_reference_camera::PtReferencePlugin,
     rt_scene::{RtEnvColor, RtScenePlugin},
@@ -65,7 +70,8 @@ fn main() {
 
     let mut app = App::new();
     #[cfg(feature = "asset_baking")]
-    app.insert_resource(RtEnvColor(vec3a(0.32, 0.4, 0.47) * 0.0));
+    app.insert_resource(args.clone())
+        .insert_resource(RtEnvColor(vec3a(0.32, 0.4, 0.47) * 0.0));
     app.insert_resource(ClearColor(Color::srgb(0.32, 0.4, 0.47)))
         .insert_resource(WinitSettings::continuous())
         .insert_resource(GlobalAmbientLight::NONE)
@@ -120,7 +126,11 @@ fn main() {
 
     if bgl2_render {
         app.init_resource::<DrawsSortedByMaterial>()
-            .add_plugins((OpenGLRenderPlugins, OpenGLStandardLightingPlugin))
+            .add_plugins((
+                GlowEguiPlugin::default(),
+                OpenGLRenderPlugins,
+                OpenGLStandardLightingPlugin,
+            ))
             .add_systems(
                 PostUpdate,
                 sort_std_mat_by_material.in_set(RenderSet::Prepare),
@@ -131,6 +141,9 @@ fn main() {
             );
         register_prepare_system(app.world_mut(), standard_material_prepare_view);
         register_render_system::<StandardMaterial, _>(app.world_mut(), standard_material_render);
+
+        #[cfg(feature = "dev")]
+        app.add_systems(EguiPrimaryContextPass, dev_ui);
     }
 
     app.add_systems(Update, generate_cascade_data)
@@ -138,6 +151,40 @@ fn main() {
         .add_systems(Update, generate_mipmaps::<StandardMaterial>)
         .add_systems(Update, window_control)
         .run();
+}
+
+#[cfg(feature = "dev")]
+fn dev_ui(
+    mut commands: Commands,
+    mut contexts: EguiContexts,
+    #[cfg(feature = "asset_baking")] cascades: Query<Entity, With<CascadeData>>,
+    args: Res<Args>,
+    mut camera: Single<&mut FreeCameraState>,
+) {
+    if let Ok(ctx) = contexts.ctx_mut() {
+        camera.enabled = !(ctx.wants_pointer_input() || ctx.wants_keyboard_input());
+    }
+
+    egui::Window::new("Dev Utils").show(contexts.ctx_mut().unwrap(), |ui| {
+        if args.bake {
+            #[cfg(feature = "asset_baking")]
+            {
+                use light_volume_baker::{NeedsCourseBake, NeedsFineBake};
+                if ui.button("Rebake All").clicked() {
+                    for entity in &cascades {
+                        commands
+                            .entity(entity)
+                            .insert((NeedsCourseBake, NeedsFineBake));
+                    }
+                }
+                if ui.button("Rebake All Course").clicked() {
+                    for entity in &cascades {
+                        commands.entity(entity).insert(NeedsCourseBake);
+                    }
+                }
+            }
+        }
+    });
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {

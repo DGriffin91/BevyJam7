@@ -8,8 +8,10 @@ version = "0.1.0"
 dependencies = [
  "argh",
  "bevy",
+ "bevy_egui",
  "bevy_mod_mipmap_generator",
  "bgl2",
+ "egui_glow",
  "glow",
  "image",
  "itertools 0.14.0",
