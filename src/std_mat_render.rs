@@ -141,8 +141,8 @@ pub fn standard_material_render(
         #[allow(unexpected_cfgs)]
         let shader_index = shader_cached!(
             ctx,
-            "../assets/shaders/temple_mat.vert",
-            "../assets/shaders/temple_mat.frag",
+            "../assets/shaders/std_mat.vert",
+            "../assets/shaders/std_mat.frag",
             [
                 DEFAULT_MAX_LIGHTS_DEF,
                 if cascades.is_empty() {

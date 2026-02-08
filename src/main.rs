@@ -202,13 +202,7 @@ fn dev_ui(
     });
 }
 
-fn setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    args: Res<Args>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>, args: Res<Args>) {
     // Sun
     commands.spawn((
         Transform::from_xyz(0.0, 0.0, 0.0).looking_at(vec3(4.0, -10.0, 3.9), Vec3::Y),
@@ -260,12 +254,6 @@ fn setup(
             GltfAssetLabel::Scene(0).from_asset("testing/models/temple_test/temple_test.gltf"),
         )));
     }
-
-    commands.spawn((
-        Mesh3d(meshes.add(Cuboid::new(1.0, 1.0, 1.0))),
-        MeshMaterial3d(materials.add(Color::srgb_u8(124, 144, 255))),
-        Transform::from_xyz(0.0, 0.5, 0.0),
-    ));
 }
 
 fn window_control(keyboard_input: Res<ButtonInput<KeyCode>>, mut window: Single<&mut Window>) {
