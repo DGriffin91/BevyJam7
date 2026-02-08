@@ -1,3 +1,5 @@
+pub mod cascade;
+
 use std::f32::consts::PI;
 
 use argh::FromArgs;
@@ -5,10 +7,6 @@ use bevy::{
     camera::primitives::Aabb,
     camera_controller::free_camera::{FreeCamera, FreeCameraPlugin},
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
-    image::{
-        ImageAddressMode, ImageFilterMode, ImageLoaderSettings, ImageSampler,
-        ImageSamplerDescriptor,
-    },
     light::light_consts::lux::DIRECT_SUNLIGHT,
     prelude::*,
     render::{RenderPlugin, settings::WgpuSettings},
@@ -43,15 +41,13 @@ use itertools::Either;
 
 #[cfg(feature = "asset_baking")]
 use light_volume_baker::{
-    CascadeData,
     cpu_probes::{CpuProbesPlugin, RunProbeDebug},
     pt_reference_camera::PtReferencePlugin,
     rt_scene::{RtEnvColor, RtScenePlugin},
     softbuffer_plugin::SoftBufferPlugin,
 };
 
-use obvhs::ray::Ray;
-use uniform_set_derive::UniformSet;
+use crate::cascade::{CascadeInput, CascadeUniform, generate_cascade_data, select_cascade};
 
 #[derive(FromArgs, Resource, Clone, Default)]
 /// Config
@@ -385,8 +381,10 @@ pub fn standard_material_render(
             let images = world.resource::<GpuImages>();
             ctx.bind_uniforms_set(images, &cascades[draw.cascade_idx as usize]);
 
-            if let Some(loc) = reflect_bool_location { (draw.read_reflect && phase.read_reflect() && reflect_uniforms.is_some())
-                    .load(&ctx.gl, &loc) }
+            if let Some(loc) = reflect_bool_location {
+                (draw.read_reflect && phase.read_reflect() && reflect_uniforms.is_some())
+                    .load(&ctx.gl, &loc)
+            }
 
             // Only re-bind if the material has changed.
             if last_material != Some(draw.material_h) {
@@ -412,114 +410,4 @@ fn window_control(keyboard_input: Res<ButtonInput<KeyCode>>, mut window: Single<
     if keyboard_input.just_pressed(KeyCode::Escape) {
         window.mode = WindowMode::Windowed;
     }
-}
-
-pub fn select_cascade<'a, I>(cascades: I, draw_aabb: obvhs::aabb::Aabb) -> u32
-where
-    I: IntoIterator<Item = &'a CascadeUniform>,
-{
-    let mut draw_dist_to_cascade = f32::MAX;
-    let mut best_cascade = 0;
-    for (i, cascade) in cascades.into_iter().enumerate() {
-        let cascade_aabb = obvhs::aabb::Aabb::new(
-            cascade.cascade_position.into(),
-            (cascade.cascade_position + cascade.cascade_res * cascade.cascade_spacing).into(),
-        );
-        let outside_weight = 10.0; // TODO do better
-        let cascade_intersection = cascade_aabb.intersection(&draw_aabb);
-        let dist_to_cascade = if cascade_intersection.valid() {
-            draw_aabb.diagonal().length() / cascade_intersection.diagonal().length()
-        } else {
-            cascade_aabb.intersect_ray(&Ray::new_inf(
-                draw_aabb.center(),
-                (cascade_aabb.center() - draw_aabb.center()).normalize_or_zero(),
-            )) * outside_weight
-        };
-        if dist_to_cascade < draw_dist_to_cascade {
-            draw_dist_to_cascade = dist_to_cascade;
-            best_cascade = i;
-        }
-    }
-    best_cascade as u32
-}
-
-#[derive(Component, Clone)]
-pub struct CascadeInput {
-    pub name: String,
-    pub ws_aabb: obvhs::aabb::Aabb,
-    pub resolution: Vec3A,
-}
-
-#[derive(UniformSet, Component, Clone)]
-#[uniform_set(prefix = "ub_")]
-pub struct CascadeUniform {
-    pub probes_gi: Handle<Image>,
-    pub probes_id: Handle<Image>,
-    pub cascade_position: Vec3,
-    pub cascade_res: Vec3,
-    pub cascade_spacing: Vec3,
-    /// Before padding
-    pub probe_size: f32,
-    pub gi_texel: f32,
-    pub id_texel: Vec2,
-}
-
-impl CascadeInput {
-    pub fn into_uniform(&self, asset_server: &AssetServer) -> CascadeUniform {
-        let cascade_res = self.ws_aabb.diagonal() / self.resolution;
-        CascadeUniform {
-            probes_gi: asset_server.load(format!("bake/probes_gi_{}.png", self.name)),
-            probes_id: asset_server.load_with_settings(
-                format!("bake/probes_id_{}.png", self.name),
-                |settings: &mut ImageLoaderSettings| settings.sampler = sampler_nearest_clamp(),
-            ),
-            cascade_position: self.ws_aabb.min.into(),
-            cascade_res: cascade_res.into(),
-            cascade_spacing: self.resolution.into(),
-            probe_size: 6.0,
-            gi_texel: 1.0 / 2048.0,
-            id_texel: vec2(1.0 / cascade_res.x, 1.0 / (cascade_res.y * cascade_res.z)),
-        }
-    }
-
-    #[cfg(feature = "asset_baking")]
-    pub fn into_cascade_data(&self) -> CascadeData {
-        let cascade_res = self.ws_aabb.diagonal() / self.resolution;
-        CascadeData {
-            name: self.name.clone(),
-            ws_aabb: self.ws_aabb,
-            resolution: self.resolution,
-            cascade_position: self.ws_aabb.min.into(),
-            cascade_res: cascade_res.into(),
-            cascade_spacing: self.resolution.into(),
-            probe_size: 6.0,
-            gi_texel: 1.0 / 2048.0,
-            id_texel: vec2(1.0 / cascade_res.x, 1.0 / (cascade_res.y * cascade_res.z)),
-        }
-    }
-}
-
-fn generate_cascade_data(
-    mut commands: Commands,
-    input_probes: Query<(Entity, &CascadeInput), Without<CascadeUniform>>,
-    asset_server: Res<AssetServer>,
-) {
-    for (entity, input) in &input_probes {
-        let mut ecmds = commands.entity(entity);
-        ecmds.insert(input.into_uniform(&asset_server));
-        #[cfg(feature = "asset_baking")]
-        ecmds.insert(input.into_cascade_data());
-    }
-}
-
-pub fn sampler_nearest_clamp() -> ImageSampler {
-    ImageSampler::Descriptor(ImageSamplerDescriptor {
-        mag_filter: ImageFilterMode::Nearest,
-        min_filter: ImageFilterMode::Nearest,
-        mipmap_filter: ImageFilterMode::Nearest,
-        address_mode_u: ImageAddressMode::ClampToEdge,
-        address_mode_v: ImageAddressMode::ClampToEdge,
-        address_mode_w: ImageAddressMode::ClampToEdge,
-        ..Default::default()
-    })
 }
