@@ -47,7 +47,6 @@ pub fn standard_material_render(
     let view_uniforms = view_uniforms.clone();
     if cascades.iter().len() == 0 {
         warn_once!("No cascades");
-        return; // TODO support no cascades
     }
 
     let phase = *phase;
@@ -144,14 +143,21 @@ pub fn standard_material_render(
             ctx,
             "../assets/shaders/temple_mat.vert",
             "../assets/shaders/temple_mat.frag",
-            [DEFAULT_MAX_LIGHTS_DEF]
-                .iter()
-                .chain(
-                    lighting_uniforms
-                        .shader_defs(true, shadow.is_some(), &phase)
-                        .iter()
-                )
-                .chain(phase.shader_defs().iter()),
+            [
+                DEFAULT_MAX_LIGHTS_DEF,
+                if cascades.is_empty() {
+                    ("", "")
+                } else {
+                    ("CASCADE", "")
+                }
+            ]
+            .iter()
+            .chain(
+                lighting_uniforms
+                    .shader_defs(true, shadow.is_some(), &phase)
+                    .iter()
+            )
+            .chain(phase.shader_defs().iter()),
             &[
                 ViewUniforms::bindings(),
                 StandardMaterialUniforms::bindings(),
@@ -198,7 +204,12 @@ pub fn standard_material_render(
             ctx.load("has_joint_data", draw.joint_data.is_some());
 
             let images = world.resource::<GpuImages>();
-            ctx.bind_uniforms_set(images, &cascades[draw.cascade_idx as usize]);
+
+            if let Some(cascade) = cascades.get(draw.cascade_idx as usize) {
+                ctx.bind_uniforms_set(images, cascade);
+            } else {
+                warn_once!("cascade {} not found", draw.cascade_idx);
+            }
 
             if let Some(loc) = reflect_bool_location {
                 (draw.read_reflect && phase.read_reflect() && reflect_uniforms.is_some())

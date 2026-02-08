@@ -115,6 +115,7 @@ void main() {
             env_occ, ub_diffuse_transmission, screen_uv, ub_view_resolution, ws_position);
 
     {
+        #ifdef CASCADE
         vec3 ls_position = (ws_position - ub_cascade_position) / ub_cascade_spacing;
         vec3 base = floor(ls_position);
         base = min(max(base, vec3(0.0)), ub_cascade_res - 2.0);
@@ -140,6 +141,7 @@ void main() {
         vec3 net_irradiance = sum_irradiance / sum_weight;
         vec3 probe_irradiance = 0.5 * PI * net_irradiance;
         output_color += probe_irradiance * diffuse_color * 1000.0 * 5.0;
+        #endif //CASCADE
     }
 
     gl_FragColor = vec4(ub_view_exposure * output_color * blender_exposure, base_color.a);
