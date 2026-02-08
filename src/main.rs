@@ -58,10 +58,6 @@ pub struct Args {
     /// cpu render first cascade
     #[argh(switch)]
     probe_debug: bool,
-    #[cfg(feature = "asset_baking")]
-    /// include probe baking plugin
-    #[argh(switch)]
-    bake: bool,
     /// temple test scene
     #[argh(switch)]
     temple: bool,
@@ -114,15 +110,11 @@ fn main() {
 
     #[cfg(feature = "asset_baking")]
     {
-        if args.reference_pt || args.probe_debug || args.bake {
-            app.add_plugins(RtScenePlugin);
-        }
+        app.add_plugins(RtScenePlugin);
         if args.probe_debug {
             app.init_resource::<RunProbeDebug>();
         }
-        if args.probe_debug || args.bake {
-            app.add_plugins(CpuProbesPlugin);
-        }
+        app.add_plugins(CpuProbesPlugin);
         if args.reference_pt {
             app.add_plugins(PtReferencePlugin);
         }
@@ -173,7 +165,6 @@ fn dev_ui(
     mut commands: Commands,
     mut contexts: EguiContexts,
     #[cfg(feature = "asset_baking")] cascades: Query<Entity, With<CascadeData>>,
-    args: Res<Args>,
     mut camera: Single<&mut FreeCameraState>,
 ) {
     if let Ok(ctx) = contexts.ctx_mut() {
@@ -181,21 +172,19 @@ fn dev_ui(
     }
 
     egui::Window::new("Dev Utils").show(contexts.ctx_mut().unwrap(), |ui| {
-        if args.bake {
-            #[cfg(feature = "asset_baking")]
-            {
-                use light_volume_baker::{NeedsCourseBake, NeedsFineBake};
-                if ui.button("Rebake All").clicked() {
-                    for entity in &cascades {
-                        commands
-                            .entity(entity)
-                            .insert((NeedsCourseBake, NeedsFineBake));
-                    }
+        #[cfg(feature = "asset_baking")]
+        {
+            use light_volume_baker::{NeedsCourseBake, NeedsFineBake};
+            if ui.button("Rebake All").clicked() {
+                for entity in &cascades {
+                    commands
+                        .entity(entity)
+                        .insert((NeedsCourseBake, NeedsFineBake));
                 }
-                if ui.button("Rebake All Course").clicked() {
-                    for entity in &cascades {
-                        commands.entity(entity).insert(NeedsCourseBake);
-                    }
+            }
+            if ui.button("Rebake All Course").clicked() {
+                for entity in &cascades {
+                    commands.entity(entity).insert(NeedsCourseBake);
                 }
             }
         }
