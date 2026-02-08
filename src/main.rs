@@ -6,7 +6,7 @@ use std::f32::consts::PI;
 
 use argh::FromArgs;
 #[cfg(feature = "dev")]
-use bevy::camera_controller::free_camera::FreeCameraState;
+use bevy::{asset::UnapprovedPathMode, camera_controller::free_camera::FreeCameraState};
 use bevy::{
     camera_controller::free_camera::{FreeCamera, FreeCameraPlugin},
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
@@ -39,9 +39,10 @@ use light_volume_baker::{
     softbuffer_plugin::SoftBufferPlugin,
 };
 
+use crate::cascade::blender_cascades;
 #[cfg(feature = "dev")]
 use crate::{
-    cascade::{CascadeInput, ConvertCascadePlugin, blender_cascades},
+    cascade::{CascadeInput, ConvertCascadePlugin},
     draw_debug::DrawDebugPlugin,
     std_mat_render::standard_material_render,
 };
@@ -97,6 +98,13 @@ fn main() {
                         ..default()
                     }),
                     ..default()
+                })
+                .set(AssetPlugin {
+                    #[cfg(feature = "dev")]
+                    unapproved_path_mode: UnapprovedPathMode::Allow,
+                    #[cfg(not(feature = "dev"))]
+                    unapproved_path_mode: UnapprovedPathMode::Forbid,
+                    ..default()
                 }),
             FreeCameraPlugin,
             LogDiagnosticsPlugin::default(),
@@ -150,7 +158,7 @@ fn main() {
         register_render_system::<StandardMaterial, _>(app.world_mut(), standard_material_render);
 
         #[cfg(feature = "dev")]
-        app.add_systems(EguiPrimaryContextPass, dev_ui);
+        app.add_systems(EguiPrimaryContextPass, (dev_ui, drag_drop_gltf));
     }
 
     app.add_plugins(ConvertCascadePlugin)
@@ -246,12 +254,6 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, args: Res<Args>
             GltfAssetLabel::Scene(0).from_asset("testing/models/temple_test/temple_test.gltf"),
         )));
     }
-
-    commands
-        .spawn(SceneRoot(asset_server.load(
-            GltfAssetLabel::Scene(0).from_asset("testing/test_bake.gltf"),
-        )))
-        .observe(blender_cascades);
 }
 
 fn window_control(keyboard_input: Res<ButtonInput<KeyCode>>, mut window: Single<&mut Window>) {
@@ -264,5 +266,25 @@ fn window_control(keyboard_input: Res<ButtonInput<KeyCode>>, mut window: Single<
     }
     if keyboard_input.just_pressed(KeyCode::Escape) {
         window.mode = WindowMode::Windowed;
+    }
+}
+
+fn drag_drop_gltf(
+    mut drag_and_drop_reader: MessageReader<FileDragAndDrop>,
+    asset_server: Res<AssetServer>,
+    mut commands: Commands,
+) {
+    for e in drag_and_drop_reader.read() {
+        match e {
+            FileDragAndDrop::DroppedFile { path_buf, .. } => {
+                let path = path_buf.to_string_lossy().to_string();
+                commands
+                    .spawn(SceneRoot(
+                        asset_server.load(GltfAssetLabel::Scene(0).from_asset(path)),
+                    ))
+                    .observe(blender_cascades);
+            }
+            _ => (),
+        }
     }
 }
