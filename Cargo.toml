@@ -1,28 +1,65 @@
 [package]
-name = "bevy_github_ci_template"
+name = "BevyJam7"
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 
-# Compile with Performance Optimizations:
-# https://bevyengine.org/learn/book/getting-started/setup/#compile-with-performance-optimizations
+[dependencies]
+# Needed to keep bevy and obvhs on the same version:
+# (obvhs can use 0.30 or 0.31, bevy 0.18 uses 0.30, bevy main uses 0.31)
+# cargo update -p glam@0.31 --precise 0.30.10
+bevy = { version = "0.18.0", default-features = false, features = [
+    "default_app",
+    "common_api",
+    "bevy_gltf",
+    "ktx2",
+    "zstd_rust",
+    "jpeg",
+    "bevy_camera_controller",
+    "free_camera",
+    "gltf_animation",
+    "hdr",
+] }
+image = "0.25.9"
+obvhs = "0.3.0"
+rayon = "1.11.0"
+softbuffer = "0.4.8"
 
-# Enable a small amount of optimization in debug mode
+winit = "0.30"
+# without this I was getting:
+# error: The platform you're compiling for is not supported by winit
+# --> /home/griffin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/winit-0.30.12/src/platform_impl/mod.rs:78:1
+
+bevy_mod_mipmap_generator = { git = "https://github.com/DGriffin91/bevy_mod_mipmap_generator" }
+argh = "0.1"
+itertools = "0.14"
+wgpu-types = "27" #Needed for bevy interop types since bevy doesn't re-export everything
+
+uniform_set_derive = { path = "../../../../opengl/bevy_opengl/uniform_set_derive" }
+bgl2 = { path = "../../../../opengl/bevy_opengl" }
+glow = "0.16"
+
+light_volume_baker = { path = "../light_volume_baker", optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys = { version = "0.3", features = [
+    "HtmlCanvasElement",
+    "WebGl2RenderingContext",
+    "Window",
+] }
+wasm-bindgen = { version = "0.2" }
+
 [profile.dev]
-opt-level = 1
+opt-level = 3
 
-# Enable high optimizations for dependencies (incl. Bevy), but not for our code:
 [profile.dev.package."*"]
 opt-level = 3
 
-[dependencies]
-bevy = "0.18"
+[features]
+default = ["dev"]
+dev = ["bevy/file_watcher", "asset_baking"]
+asset_baking = ["dep:light_volume_baker"]
 
-# These lints may be important signals about code quality, but normal Bevy code
-# commonly triggers them and the CI workflow treats them as errors, so we've
-# chosen to allow them in this template.
-#
-# Feel free to delete the following lines.
 [lints.clippy]
 too_many_arguments = "allow"
 type_complexity = "allow"
