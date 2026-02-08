@@ -18,6 +18,8 @@ dependencies = [
  "light_volume_baker",
  "obvhs",
  "rayon",
+ "serde",
+ "serde_json",
  "softbuffer",
  "uniform_set_derive",
  "wasm-bindgen",

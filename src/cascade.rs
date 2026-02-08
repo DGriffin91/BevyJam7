@@ -3,12 +3,62 @@ use bevy::{
         ImageAddressMode, ImageFilterMode, ImageLoaderSettings, ImageSampler,
         ImageSamplerDescriptor,
     },
+    platform::collections::HashMap,
     prelude::*,
+    scene::SceneInstanceReady,
 };
+
+#[derive(Resource, Default)]
+pub struct ConvertCascadePlugin;
+
+impl Plugin for ConvertCascadePlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Update, (generate_cascade_data).chain());
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct ProbeBakeExtras {
+    #[serde(rename = "probe bake res")]
+    probe_bake_res: Option<Vec<f32>>,
+
+    #[serde(flatten)]
+    other: HashMap<String, serde_json::Value>,
+}
+
+pub fn blender_cascades(
+    scene_ready: On<SceneInstanceReady>,
+    mut commands: Commands,
+    children: Query<&Children>,
+    gltf_extras: Query<(Entity, &GlobalTransform, &Name, &GltfExtras)>,
+) {
+    for entity in children.iter_descendants(scene_ready.entity) {
+        if let Ok((entity, trans, name, extras)) = gltf_extras.get(entity) {
+            if name.contains("BAKE") {
+                let extras: ProbeBakeExtras = serde_json::from_str(&extras.value).unwrap();
+                if let Some(bake_res) = extras.probe_bake_res {
+                    let scale: Vec3A = trans.scale().into();
+                    let start = trans.translation_vec3a() - scale;
+                    let end = trans.translation_vec3a() + scale;
+                    commands
+                        .entity(entity)
+                        .insert(CascadeInput {
+                            name: String::from("test_gltf"),
+                            ws_aabb: obvhs::aabb::Aabb::new(start, end),
+                            resolution: vec3a(bake_res[0], bake_res[1], bake_res[2]),
+                        })
+                        .remove::<CascadeData>()
+                        .remove::<CascadeUniform>();
+                }
+            }
+        }
+    }
+}
 
 #[cfg(feature = "asset_baking")]
 use light_volume_baker::CascadeData;
 use obvhs::ray::Ray;
+use serde::Deserialize;
 use uniform_set_derive::UniformSet;
 
 pub fn select_cascade<'a, I>(cascades: I, draw_aabb: obvhs::aabb::Aabb) -> u32

@@ -46,7 +46,7 @@ pub fn standard_material_render(
 ) {
     let view_uniforms = view_uniforms.clone();
     if cascades.iter().len() == 0 {
-        warn!("No cascades");
+        warn_once!("No cascades");
         return; // TODO support no cascades
     }
 
