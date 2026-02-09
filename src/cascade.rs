@@ -41,7 +41,6 @@ pub fn blender_cascades(
                     let position = trans.translation.to_vec3a();
                     let start = position - scale;
                     let end = position + scale;
-                    dbg!(start, end, &bake_res);
                     commands
                         .entity(entity)
                         .insert(CascadeInput {
@@ -67,26 +66,40 @@ pub fn select_cascade<'a, I>(cascades: I, draw_aabb: obvhs::aabb::Aabb) -> u32
 where
     I: IntoIterator<Item = &'a CascadeUniform>,
 {
+    let draw_size = draw_aabb.diagonal().length();
+    let draw_center = draw_aabb.center();
     let mut draw_dist_to_cascade = f32::MAX;
     let mut best_cascade = 0;
+    let mut best_relative_res = 0.0;
     for (i, cascade) in cascades.into_iter().enumerate() {
         let cascade_aabb = obvhs::aabb::Aabb::new(
             cascade.cascade_position.into(),
             (cascade.cascade_position + cascade.cascade_res * cascade.cascade_spacing).into(),
         );
+        // Oversize the cascade_aabb to include the full infulence range
+        let spacing = cascade.cascade_spacing.to_vec3a() * 2.0;
+        let mut enlarged_cascade_aabb = cascade_aabb;
+        enlarged_cascade_aabb.min -= spacing;
+        enlarged_cascade_aabb.max += spacing;
+
         let outside_weight = 10.0; // TODO do better
-        let cascade_intersection = cascade_aabb.intersection(&draw_aabb);
+        let cascade_intersection = enlarged_cascade_aabb.intersection(&draw_aabb);
+        let relative_res = (cascade.cascade_res / cascade.cascade_spacing).max_element();
         let dist_to_cascade = if cascade_intersection.valid() {
-            draw_aabb.diagonal().length() / cascade_intersection.diagonal().length()
+            draw_size / cascade_intersection.diagonal().length()
         } else {
             cascade_aabb.intersect_ray(&Ray::new_inf(
-                draw_aabb.center(),
-                (cascade_aabb.center() - draw_aabb.center()).normalize_or_zero(),
+                draw_center,
+                (cascade_aabb.center() - draw_center).normalize_or_zero(),
             )) * outside_weight
         };
-        if dist_to_cascade < draw_dist_to_cascade {
+
+        if dist_to_cascade < draw_dist_to_cascade
+            || (cascade_intersection.valid() && relative_res > best_relative_res)
+        {
             draw_dist_to_cascade = dist_to_cascade;
             best_cascade = i;
+            best_relative_res = relative_res;
         }
     }
     best_cascade as u32
