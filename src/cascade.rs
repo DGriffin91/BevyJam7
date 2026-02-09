@@ -137,7 +137,6 @@ impl CascadeInput {
         CascadeData {
             name: self.name.clone(),
             ws_aabb: self.ws_aabb,
-            resolution: self.resolution,
             cascade_position: self.ws_aabb.min.into(),
             cascade_res: cascade_res.into(),
             cascade_spacing: self.resolution.into(),
