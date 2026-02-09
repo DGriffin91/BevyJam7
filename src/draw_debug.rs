@@ -37,6 +37,22 @@ impl DebugLines {
         self.colors.push(c);
         self.colors.push(c);
     }
+    pub fn aabb(&mut self, aabb: obvhs::aabb::Aabb, color: Vec3) {
+        let a = aabb.min;
+        let b = aabb.max;
+        self.line(vec3(a.x, a.y, a.z), vec3(b.x, a.y, a.z), color);
+        self.line(vec3(a.x, a.y, b.z), vec3(b.x, a.y, b.z), color);
+        self.line(vec3(a.x, b.y, a.z), vec3(b.x, b.y, a.z), color);
+        self.line(vec3(a.x, b.y, b.z), vec3(b.x, b.y, b.z), color);
+        self.line(vec3(a.x, a.y, a.z), vec3(a.x, b.y, a.z), color);
+        self.line(vec3(a.x, a.y, b.z), vec3(a.x, b.y, b.z), color);
+        self.line(vec3(b.x, a.y, a.z), vec3(b.x, b.y, a.z), color);
+        self.line(vec3(b.x, a.y, b.z), vec3(b.x, b.y, b.z), color);
+        self.line(vec3(a.x, a.y, a.z), vec3(a.x, a.y, b.z), color);
+        self.line(vec3(a.x, b.y, a.z), vec3(a.x, b.y, b.z), color);
+        self.line(vec3(b.x, a.y, a.z), vec3(b.x, a.y, b.z), color);
+        self.line(vec3(b.x, b.y, a.z), vec3(b.x, b.y, b.z), color);
+    }
 }
 
 #[derive(Component, Default)]

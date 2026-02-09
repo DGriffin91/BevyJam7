@@ -62,6 +62,21 @@ use obvhs::ray::Ray;
 use serde::Deserialize;
 use uniform_set_derive::UniformSet;
 
+pub fn transform_aabb(world_from_local: Mat4, aabb: obvhs::aabb::Aabb) -> obvhs::aabb::Aabb {
+    let min = aabb.min;
+    let max = aabb.max;
+    let mut aabb = obvhs::aabb::Aabb::empty();
+    aabb.extend(world_from_local.transform_point3a(vec3a(min.x, min.y, min.z)));
+    aabb.extend(world_from_local.transform_point3a(vec3a(max.x, min.y, min.z)));
+    aabb.extend(world_from_local.transform_point3a(vec3a(min.x, max.y, min.z)));
+    aabb.extend(world_from_local.transform_point3a(vec3a(min.x, min.y, max.z)));
+    aabb.extend(world_from_local.transform_point3a(vec3a(max.x, max.y, max.z)));
+    aabb.extend(world_from_local.transform_point3a(vec3a(min.x, max.y, max.z)));
+    aabb.extend(world_from_local.transform_point3a(vec3a(max.x, min.y, max.z)));
+    aabb.extend(world_from_local.transform_point3a(vec3a(max.x, max.y, min.z)));
+    aabb
+}
+
 pub fn select_cascade<'a, I>(cascades: I, draw_aabb: obvhs::aabb::Aabb) -> u32
 where
     I: IntoIterator<Item = &'a CascadeUniform>,

@@ -1,3 +1,4 @@
+use bevy::math::VectorSpace;
 use bevy::{camera::primitives::Aabb, prelude::*};
 use bgl2::bevy_standard_lighting::DEFAULT_MAX_LIGHTS_DEF;
 use bgl2::{
@@ -19,8 +20,10 @@ use bgl2::{
     shader_cached,
 };
 use itertools::Either;
+use obvhs::ray::Ray;
 
-use crate::cascade::{CascadeUniform, select_cascade};
+use crate::cascade::{CascadeUniform, select_cascade, transform_aabb};
+use crate::draw_debug::DebugLines;
 
 pub fn standard_material_render(
     mesh_entities: Query<(
@@ -43,6 +46,7 @@ pub fn standard_material_render(
     mut enc: ResMut<CommandEncoder>,
     shadow: Option<Res<DirectionalLightShadow>>,
     cascades: Query<&CascadeUniform>,
+    mut debug: ResMut<DebugLines>,
 ) {
     let view_uniforms = view_uniforms.clone();
     if cascades.iter().len() == 0 {
@@ -115,9 +119,11 @@ pub fn standard_material_render(
             render_materials.push(material.into());
         }
 
-        let ws_radius = transform.radius_vec3a(aabb.half_extents);
-        let ws_center = world_from_local.transform_point3a(aabb.center);
-        let draw_aabb = obvhs::aabb::Aabb::new(ws_center, Vec3A::splat(ws_radius));
+        let draw_aabb = transform_aabb(
+            world_from_local,
+            obvhs::aabb::Aabb::new(aabb.min(), aabb.max()),
+        );
+        let cascade_idx = select_cascade(cascades, draw_aabb);
 
         draws.push(Draw {
             // TODO don't copy full material
@@ -127,7 +133,7 @@ pub fn standard_material_render(
             material_h: material_h.id(),
             read_reflect,
             mesh: mesh.0.clone(),
-            cascade_idx: select_cascade(cascades, draw_aabb),
+            cascade_idx,
         });
     }
 

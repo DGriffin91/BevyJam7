@@ -203,7 +203,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, args: Res<Args>
             shadow_normal_bias: 0.0,
             ..default()
         },
-        ShadowBounds::cube(if args.temple { 250.0 } else { 50.0 }),
+        ShadowBounds::cube(if args.temple { 250.0 } else { 100.0 }),
     ));
 
     // Camera
