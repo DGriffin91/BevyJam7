@@ -41,10 +41,11 @@ pub fn blender_cascades(
                     let position = trans.translation.to_vec3a();
                     let start = position - scale;
                     let end = position + scale;
+                    dbg!(start, end, &bake_res);
                     commands
                         .entity(entity)
                         .insert(CascadeInput {
-                            name: String::from("test_gltf"),
+                            name: name.to_string(),
                             ws_aabb: obvhs::aabb::Aabb::new(start, end),
                             resolution: vec3a(bake_res[0], bake_res[1], bake_res[2]),
                         })
@@ -114,7 +115,7 @@ pub struct CascadeUniform {
 
 impl CascadeInput {
     pub fn into_uniform(&self, asset_server: &AssetServer) -> CascadeUniform {
-        let cascade_res = self.ws_aabb.diagonal() / self.resolution;
+        let cascade_res = (self.ws_aabb.diagonal() / self.resolution).ceil();
         CascadeUniform {
             probes_gi: asset_server.load(format!("bake/probes_gi_{}.png", self.name)),
             probes_id: asset_server.load_with_settings(
@@ -132,7 +133,7 @@ impl CascadeInput {
 
     #[cfg(feature = "asset_baking")]
     pub fn into_cascade_data(&self) -> CascadeData {
-        let cascade_res = self.ws_aabb.diagonal() / self.resolution;
+        let cascade_res = (self.ws_aabb.diagonal() / self.resolution).ceil();
         CascadeData {
             name: self.name.clone(),
             ws_aabb: self.ws_aabb,
