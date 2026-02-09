@@ -4,7 +4,58 @@
 #include std::pbr
 #include std::agx
 #include std::shadow_sampling
-#include std::pbr_lighting
+
+vec3 apply_pbr_lighting(vec3 V, vec3 diffuse_color, vec3 F0, vec3 vert_normal, vec3 normal, float perceptual_roughness,
+    float environment_occlusion, float diffuse_transmission, vec2 screen_uv, vec2 view_resolution, vec3 ws_position, float dir_shadow) {
+    float roughness = perceptual_roughness * perceptual_roughness;
+    vec3 output_color = vec3(0.0);
+
+    #ifndef NO_DIRECTIONAL
+    #ifdef SAMPLE_SHADOW
+    float bias = 0.002;
+    float normal_bias = 0.05;
+    vec4 shadow_clip = ub_shadow_clip_from_world * vec4(ws_position + vert_normal * normal_bias, 1.0);
+    vec3 shadow_uvz = (shadow_clip.xyz / shadow_clip.w) * 0.5 + 0.5;
+
+    if (shadow_uvz.x > 0.0 && shadow_uvz.x < 1.0 && shadow_uvz.y > 0.0 && shadow_uvz.y < 1.0 && shadow_uvz.z > 0.0 && shadow_uvz.z < 1.0) {
+        dir_shadow = bilinear_shadow2(ub_shadow_texture, shadow_uvz.xy, shadow_uvz.z, bias, view_resolution);
+        //dir_shadow *= sample_shadow_map_castano_thirteen(ub_shadow_texture, shadow_uvz.xy, shadow_uvz.z, bias, view_resolution);
+    }
+    dir_shadow = hardenedKernel(dir_shadow);
+    #endif // SAMPLE_SHADOW
+
+    output_color += directional_light(V, F0, diffuse_color, normal, roughness, diffuse_transmission, dir_shadow, ub_directional_light_dir, ub_directional_light_color);
+    #endif // NO_DIRECTIONAL
+
+    #ifndef NO_ENV
+    // Environment map
+    float NoV = abs(dot(normal, V)) + 1e-5;
+    float mip_levels = 8.0; // TODO put in uniform
+    vec3 dir = reflect(-V, normal);
+    vec3 env_diffuse = rgbe2rgb(textureCubeLod(ub_diffuse_map, vec3(normal.xy, -normal.z), 0.0)) * ub_env_intensity;
+    vec3 env_specular = rgbe2rgb(textureCubeLod(ub_specular_map, vec3(dir.xy, -dir.z), perceptual_roughness * mip_levels)) * ub_env_intensity;
+    output_color += environment_light(NoV, F0, perceptual_roughness, diffuse_color, env_diffuse, env_specular) * environment_occlusion;
+    #endif // NO_ENV
+
+    #ifndef NO_POINT
+    // Point Lights
+    for (int i = 0; i < MAX_POINT_LIGHTS; i++) {
+        if (i < ub_light_count) {
+            vec4 light_position_range = ub_point_light_position_range[i];
+            vec3 to_light = light_position_range.xyz - ws_position;
+            if (length(to_light) < light_position_range.w) {
+                vec4 light_color_radius = ub_point_light_color_radius[i];
+                vec4 dos = ub_spot_light_dir_offset_scale[i];
+                vec3 spot_dir = octahedral_decode(dos.xy);
+                output_color += point_light(V, diffuse_color, F0, normal, roughness, diffuse_transmission, to_light,
+                        light_position_range.w, light_color_radius.rgb, spot_dir, dos.z, dos.w);
+            }
+        }
+    }
+    #endif // NO_POINT
+
+    return output_color;
+}
 
 varying vec4 clip_position;
 varying vec3 ws_position;
@@ -111,9 +162,7 @@ void main() {
     }
     #endif //READ_REFLECTION
 
-    output_color += apply_pbr_lighting(V, diffuse_color, F0, vert_normal, normal, perceptual_roughness,
-            env_occ, ub_diffuse_transmission, screen_uv, ub_view_resolution, ws_position);
-
+    float dir_shadow = 0.0;
     {
         #ifdef CASCADE
         vec3 ls_position = (ws_position - ub_cascade_position) / ub_cascade_spacing;
@@ -133,16 +182,24 @@ void main() {
             float weight = trilinear.x * trilinear.y * trilinear.z;
             float probe_pad_size = ub_probe_size + 2.0;
             vec2 oct = octEncode(normal) * 0.5 + 0.5;
-            vec2 probe_xy_id = floor(texture2D(ub_probes_id, id_texel_half + ub_id_texel * ls_id_position).xy * 255.0 + 0.5);
+            vec4 probe_id_info = texture2D(ub_probes_id, id_texel_half + ub_id_texel * ls_id_position);
+            vec2 probe_xy_id = floor(probe_id_info.xy * 255.0 + 0.5);
             vec2 uv = ub_gi_texel + oct * ub_probe_size * ub_gi_texel + (ub_gi_texel * probe_pad_size * probe_xy_id);
+            dir_shadow += weight * probe_id_info.z;
             sum_irradiance += weight * rgbe2rgb(texture2D(ub_probes_gi, uv));
             sum_weight += weight;
         }
         vec3 net_irradiance = sum_irradiance / sum_weight;
+        dir_shadow = dir_shadow / sum_weight;
         vec3 probe_irradiance = 0.5 * PI * net_irradiance;
         output_color += probe_irradiance * diffuse_color * 1000.0 * 5.0;
+        #else //CASCADE
+        dir_shadow = 1.0;
         #endif //CASCADE
     }
+
+    output_color += apply_pbr_lighting(V, diffuse_color, F0, vert_normal, normal, perceptual_roughness,
+            env_occ, ub_diffuse_transmission, screen_uv, ub_view_resolution, ws_position, dir_shadow);
 
     gl_FragColor = vec4(ub_view_exposure * output_color * blender_exposure, base_color.a);
     #ifdef WRITE_REFLECTION
