@@ -1,4 +1,3 @@
-use bevy::math::VectorSpace;
 use bevy::{camera::primitives::Aabb, prelude::*};
 use bgl2::bevy_standard_lighting::DEFAULT_MAX_LIGHTS_DEF;
 use bgl2::{

@@ -110,14 +110,14 @@ fn main() {
 
     #[cfg(feature = "asset_baking")]
     {
-        use light_volume_baker::cpu_probes::CpuProbeSamples;
+        use light_volume_baker::{cpu_probes::CpuProbeSamples, gpu_rt::GpuRtPlugin};
 
         app.add_plugins(RtScenePlugin);
         if args.probe_debug {
             app.init_resource::<RunProbeDebug>();
         }
-        app.insert_resource(CpuProbeSamples(2048))
-            .add_plugins(CpuProbesPlugin);
+        app.insert_resource(CpuProbeSamples(0))
+            .add_plugins((CpuProbesPlugin, GpuRtPlugin));
         if args.reference_pt {
             app.add_plugins(PtReferencePlugin);
         }
@@ -177,17 +177,13 @@ fn dev_ui(
     egui::Window::new("Dev Utils").show(contexts.ctx_mut().unwrap(), |ui| {
         #[cfg(feature = "asset_baking")]
         {
+            use light_volume_baker::gpu_rt::NeedsGpuBake;
             use light_volume_baker::{NeedsCourseBake, NeedsFineBake};
             if ui.button("Rebake All").clicked() {
                 for entity in &cascades {
                     commands
                         .entity(entity)
-                        .insert((NeedsCourseBake, NeedsFineBake));
-                }
-            }
-            if ui.button("Rebake All Course").clicked() {
-                for entity in &cascades {
-                    commands.entity(entity).insert(NeedsCourseBake);
+                        .insert((NeedsGpuBake, NeedsCourseBake, NeedsFineBake));
                 }
             }
         }
