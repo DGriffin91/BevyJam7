@@ -110,11 +110,14 @@ fn main() {
 
     #[cfg(feature = "asset_baking")]
     {
+        use light_volume_baker::cpu_probes::CpuProbeSamples;
+
         app.add_plugins(RtScenePlugin);
         if args.probe_debug {
             app.init_resource::<RunProbeDebug>();
         }
-        app.add_plugins(CpuProbesPlugin);
+        app.insert_resource(CpuProbeSamples(2048))
+            .add_plugins(CpuProbesPlugin);
         if args.reference_pt {
             app.add_plugins(PtReferencePlugin);
         }
