@@ -236,7 +236,7 @@ pub fn standard_material_render(
                 warn_once!("cascade {} not found", draw.cascade_idx);
             }
 
-            if let Some(loc) = reflect_bool_location {
+            if let Some(ref loc) = reflect_bool_location {
                 (draw.read_reflect && phase.read_reflect() && reflect_uniforms.is_some())
                     .load(&ctx.gl, &loc)
             }

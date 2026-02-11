@@ -52,15 +52,18 @@ pub fn blender_cascades(
                     let end = position + scale;
                     let mut full_name = name_prefix.clone();
                     full_name.push_str(name);
-                    commands
-                        .entity(entity)
+                    let mut ecmds = commands.entity(entity);
+
+                    ecmds
                         .insert(CascadeInput {
                             name: full_name,
                             ws_aabb: obvhs::aabb::Aabb::new(start, end),
                             resolution: vec3a(bake_res[0], bake_res[1], bake_res[2]),
                         })
-                        .remove::<CascadeData>()
                         .remove::<CascadeUniform>();
+
+                    #[cfg(feature = "dev")]
+                    ecmds.remove::<CascadeData>();
                 }
             }
         }

@@ -7,7 +7,7 @@ use std::f32::consts::PI;
 
 use argh::FromArgs;
 #[cfg(feature = "dev")]
-use bevy::{asset::UnapprovedPathMode, camera_controller::free_camera::FreeCameraState};
+use bevy::camera_controller::free_camera::FreeCameraState;
 use bevy::{
     camera_controller::free_camera::{FreeCamera, FreeCameraPlugin},
     core_pipeline::prepass::DepthPrepass,
@@ -42,12 +42,9 @@ use light_volume_baker::{
     softbuffer_plugin::SoftBufferPlugin,
 };
 
-use crate::cascade::blender_cascades;
-#[cfg(feature = "dev")]
 use crate::{
     cascade::{CascadeInput, ConvertCascadePlugin},
     draw_debug::DrawDebugPlugin,
-    std_mat_render::standard_material_render,
 };
 
 #[derive(FromArgs, Resource, Clone, Default)]
@@ -75,9 +72,9 @@ fn main() {
     let args: Args = argh::from_env();
 
     let mut app = App::new();
+    app.insert_resource(args.clone());
     #[cfg(feature = "asset_baking")]
-    app.insert_resource(args.clone())
-        .insert_resource(RtEnvColor(vec3a(0.32, 0.4, 0.47) * 2.0));
+    app.insert_resource(RtEnvColor(vec3a(0.32, 0.4, 0.47) * 2.0));
     app.insert_resource(ClearColor(Color::srgb(0.32, 0.4, 0.47)))
         .insert_resource(WinitSettings::continuous())
         .insert_resource(GlobalAmbientLight::NONE)
@@ -100,9 +97,9 @@ fn main() {
                 })
                 .set(AssetPlugin {
                     #[cfg(feature = "dev")]
-                    unapproved_path_mode: UnapprovedPathMode::Allow,
+                    unapproved_path_mode: bevy::asset::UnapprovedPathMode::Allow,
                     #[cfg(not(feature = "dev"))]
-                    unapproved_path_mode: UnapprovedPathMode::Forbid,
+                    unapproved_path_mode: bevy::asset::UnapprovedPathMode::Forbid,
                     ..default()
                 }),
             FreeCameraPlugin,
@@ -154,7 +151,10 @@ fn main() {
             );
         register_prepare_system(app.world_mut(), standard_material_prepare_view);
         //register_prepare_system(app.world_mut(), copy_depth_prepass);
-        register_render_system::<StandardMaterial, _>(app.world_mut(), standard_material_render);
+        register_render_system::<StandardMaterial, _>(
+            app.world_mut(),
+            std_mat_render::standard_material_render,
+        );
 
         #[cfg(feature = "dev")]
         app.add_systems(EguiPrimaryContextPass, (dev_ui, drag_drop_gltf));
@@ -306,7 +306,7 @@ fn drag_drop_gltf(
                             SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(path))),
                             SceneBakeName(scene_bake_name),
                         ))
-                        .observe(blender_cascades);
+                        .observe(cascade::blender_cascades);
                 }
             }
             _ => (),
