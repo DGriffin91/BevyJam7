@@ -223,7 +223,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, args: Res<Args>
             fov: PI / 3.0,
             ..default()
         }),
-        //DepthPrepass,
+        DepthPrepass,
     ));
 
     if args.temple {
@@ -247,6 +247,10 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, args: Res<Args>
             //GltfAssetLabel::Scene(0).from_asset("testing/models/temple/temple.gltf"),
             GltfAssetLabel::Scene(0).from_asset("testing/models/temple_test/temple_test.gltf"),
         )));
+
+        commands.spawn(SceneRoot(
+            asset_server.load(GltfAssetLabel::Scene(0).from_asset("testing/plant.gltf")),
+        ));
 
         commands
             .spawn(SceneRoot(asset_server.load(

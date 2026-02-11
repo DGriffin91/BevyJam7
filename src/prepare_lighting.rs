@@ -61,7 +61,7 @@ impl GameLightingUniforms {
             } else {
                 ("NO_ENV", "")
             },
-            if phase.depth_only() && shadow {
+            if phase.depth_only() {
                 ("RENDER_DEPTH_ONLY", "")
             } else {
                 if shadow {

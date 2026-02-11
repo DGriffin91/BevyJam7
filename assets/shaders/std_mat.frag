@@ -218,6 +218,9 @@ void main() {
     vec2 screen_uv = ndc_position.xy * 0.5 + 0.5;
 
     #ifdef RENDER_DEPTH_ONLY
+    if (!ub_alpha_blend && (base_color.a < 0.5)) {
+        discard; // Only discard in prepass
+    }
     gl_FragColor = EncodeFloatRGBA(saturate(ndc_position.z * 0.5 + 0.5));
     #else // RENDER_DEPTH_ONLY
 
