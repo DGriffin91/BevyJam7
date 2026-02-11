@@ -185,7 +185,7 @@ vec4 sample_cascade_stochastic(vec3 ws_position, vec3 ws_normal, vec2 screen_uv,
 vec3 sample_fog(float blend, float seed, vec3 atm_color, vec3 sample_normal, vec2 screen_uv, vec3 V) {
     vec3 sample_pos = ws_position * (1.0 - seed) + seed * ub_view_position;
     vec4 col_shad = sample_cascade_stochastic(sample_pos, sample_normal, screen_uv, vec3(blend));
-    vec3 color = col_shad.rgb;
+    vec3 color = col_shad.rgb * atm_color;
     //output_color /= blend;
 
     float atm_dir_shadow = col_shad.w;
@@ -307,15 +307,17 @@ void main() {
     output_color += apply_pbr_lighting(V, diffuse_color, F0, vert_normal, normal, perceptual_roughness,
             env_occ, ub_diffuse_transmission, screen_uv, ub_view_resolution, ws_position, dir_shadow);
 
+    #ifdef THERES_FOG
     {
         float seed = hash(screen_uv + hash(ub_frame - 123.456));
-        vec3 fog_color = sample_fog(3.0, seed, vec3(1.0), vec3(0.0, 1.0, 0.0), screen_uv, V);
+        vec3 fog_color = sample_fog(3.0, seed, ub_fog_color.rgb, vec3(0.0, 1.0, 0.0), screen_uv, V);
         seed = hash(screen_uv + 2.0 + hash(ub_frame - 567.345));
 
         float frag_dist = length(ub_view_position - ws_position) * 0.02;
         float f = min(frag_dist, 1.0);
         output_color = fog_color * f + (1.0 - f) * output_color;
     }
+    #endif // THERES_FOG
 
     gl_FragColor = vec4(ub_view_exposure * output_color * blender_exposure, base_color.a);
     #ifdef WRITE_REFLECTION

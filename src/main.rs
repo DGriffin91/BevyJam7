@@ -46,6 +46,7 @@ use crate::{
     cascade::{CascadeInput, ConvertCascadePlugin},
     draw_debug::DrawDebugPlugin,
     prepare_lighting::{DynamicLight, PrepareLightingPlugin},
+    std_mat_render::Fog,
 };
 
 #[derive(FromArgs, Resource, Clone, Default)]
@@ -161,7 +162,8 @@ fn main() {
         app.add_systems(EguiPrimaryContextPass, (dev_ui, drag_drop_gltf));
     }
 
-    app.add_plugins(ConvertCascadePlugin)
+    app.init_resource::<Fog>()
+        .add_plugins(ConvertCascadePlugin)
         .add_systems(Startup, setup)
         .add_systems(Update, generate_mipmaps::<StandardMaterial>)
         .add_systems(Update, window_control)
@@ -195,7 +197,12 @@ fn dev_ui(
     });
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>, args: Res<Args>) {
+fn setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    args: Res<Args>,
+    mut fog: ResMut<Fog>,
+) {
     // Sun
     commands.spawn((
         Transform::from_xyz(0.0, 0.0, 0.0).looking_at(vec3(4.0, -10.0, 3.9), Vec3::Y),
@@ -225,6 +232,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, args: Res<Args>
         }),
         DepthPrepass,
     ));
+    fog.fog_color = vec4(1.0, 1.0, 1.0, 1.0);
 
     if args.temple {
         let start = vec3a(-47.5, 0.1, -25.5);

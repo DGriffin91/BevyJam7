@@ -2,7 +2,6 @@ use bevy::{camera::primitives::Aabb, prelude::*};
 use bgl2::bevy_standard_lighting::DEFAULT_MAX_LIGHTS_DEF;
 use bgl2::{
     UniformSet, UniformValue,
-    bevy_standard_lighting::StandardLightingUniforms,
     bevy_standard_material::{
         DrawsSortedByMaterial, GameMaterialUniforms, ReadReflection, SkipReflection, ViewUniforms,
     },
@@ -18,10 +17,17 @@ use bgl2::{
     shader_cached,
 };
 use itertools::Either;
+use uniform_set_derive::UniformSet;
 
 use crate::cascade::{CascadeUniform, select_cascade, transform_aabb};
 use crate::copy_depth_prepass::PrepassTexture;
 use crate::prepare_lighting::GameLightingUniforms;
+
+#[derive(UniformSet, Resource, Clone, Default)]
+#[uniform_set(prefix = "ub_")]
+pub struct Fog {
+    pub fog_color: Vec4,
+}
 
 pub fn standard_material_render(
     mesh_entities: Query<(
@@ -45,6 +51,7 @@ pub fn standard_material_render(
     shadow: Option<Res<DirectionalLightShadow>>,
     cascades: Query<&CascadeUniform>,
     prepass: Option<ResMut<PrepassTexture>>,
+    fog: Option<Res<Fog>>,
 ) {
     let view_uniforms = view_uniforms.clone();
     if cascades.iter().len() == 0 {
@@ -139,6 +146,7 @@ pub fn standard_material_render(
 
     let shadow = shadow.as_deref().cloned();
     let prepass = prepass.as_deref().cloned();
+    let fog = fog.as_deref().cloned();
 
     let cascades = cascades.iter().cloned().collect::<Vec<_>>();
     enc.record(move |ctx, world| {
@@ -148,6 +156,12 @@ pub fn standard_material_render(
             | RenderPhase::Opaque
             | RenderPhase::Transparent => prepass.is_some(),
             _ => false,
+        };
+
+        let theres_fog = if let Some(fog) = &fog {
+            fog.fog_color != Vec4::ZERO
+        } else {
+            false
         };
 
         let lighting_uniforms = world.resource::<GameLightingUniforms>().clone();
@@ -167,6 +181,11 @@ pub fn standard_material_render(
                     ("READ_PREPASS", "")
                 } else {
                     ("", "")
+                },
+                if theres_fog {
+                    ("THERES_FOG", "")
+                } else {
+                    ("", "")
                 }
             ]
             .iter()
@@ -182,6 +201,7 @@ pub fn standard_material_render(
                 GameLightingUniforms::bindings(),
                 CascadeUniform::bindings(),
                 PrepassTexture::bindings(),
+                Fog::bindings(),
             ]
         )
         .unwrap();
@@ -193,6 +213,7 @@ pub fn standard_material_render(
         ctx.map_uniform_set_locations::<GameMaterialUniforms>();
         ctx.map_uniform_set_locations::<CascadeUniform>();
         ctx.map_uniform_set_locations::<PrepassTexture>();
+        ctx.map_uniform_set_locations::<Fog>();
 
         ctx.bind_uniforms_set(
             world.resource::<GpuImages>(),
@@ -209,6 +230,10 @@ pub fn standard_material_render(
             ctx.bind_uniforms_set(
                 world.resource::<GpuImages>(),
                 reflect_uniforms.as_ref().unwrap_or(&Default::default()),
+            );
+            ctx.bind_uniforms_set(
+                world.resource::<GpuImages>(),
+                fog.as_ref().unwrap_or(&Default::default()),
             );
         }
 
