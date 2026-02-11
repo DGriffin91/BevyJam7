@@ -1,4 +1,5 @@
 pub mod cascade;
+pub mod copy_depth_prepass;
 pub mod draw_debug;
 pub mod std_mat_render;
 
@@ -9,12 +10,13 @@ use argh::FromArgs;
 use bevy::{asset::UnapprovedPathMode, camera_controller::free_camera::FreeCameraState};
 use bevy::{
     camera_controller::free_camera::{FreeCamera, FreeCameraPlugin},
+    core_pipeline::prepass::DepthPrepass,
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     light::light_consts::lux::DIRECT_SUNLIGHT,
     prelude::*,
     render::{RenderPlugin, settings::WgpuSettings},
     scene::SceneInstanceReady,
-    window::{PresentMode, WindowMode},
+    window::WindowMode,
     winit::WinitSettings,
 };
 #[cfg(feature = "dev")]
@@ -91,7 +93,7 @@ fn main() {
                 })
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        present_mode: PresentMode::Immediate,
+                        //present_mode: bevy::window::PresentMode::Immediate,
                         ..default()
                     }),
                     ..default()
@@ -151,6 +153,7 @@ fn main() {
                 init_std_shader_includes.in_set(RenderSet::Pipeline),
             );
         register_prepare_system(app.world_mut(), standard_material_prepare_view);
+        //register_prepare_system(app.world_mut(), copy_depth_prepass);
         register_render_system::<StandardMaterial, _>(app.world_mut(), standard_material_render);
 
         #[cfg(feature = "dev")]
@@ -219,6 +222,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, args: Res<Args>
             fov: PI / 3.0,
             ..default()
         }),
+        DepthPrepass,
     ));
 
     if args.temple {

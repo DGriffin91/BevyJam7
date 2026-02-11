@@ -21,6 +21,7 @@ use bgl2::{
 use itertools::Either;
 
 use crate::cascade::{CascadeUniform, select_cascade, transform_aabb};
+use crate::copy_depth_prepass::PrepassTexture;
 
 pub fn standard_material_render(
     mesh_entities: Query<(
@@ -43,6 +44,7 @@ pub fn standard_material_render(
     mut enc: ResMut<CommandEncoder>,
     shadow: Option<Res<DirectionalLightShadow>>,
     cascades: Query<&CascadeUniform>,
+    prepass: Option<ResMut<PrepassTexture>>,
 ) {
     let view_uniforms = view_uniforms.clone();
     if cascades.iter().len() == 0 {
@@ -136,9 +138,18 @@ pub fn standard_material_render(
     let reflect_uniforms = reflect_uniforms.as_deref().cloned();
 
     let shadow = shadow.as_deref().cloned();
+    let prepass = prepass.as_deref().cloned();
 
     let cascades = cascades.iter().cloned().collect::<Vec<_>>();
     enc.record(move |ctx, world| {
+        let can_read_prepass = match phase {
+            RenderPhase::ReflectOpaque
+            | RenderPhase::ReflectTransparent
+            | RenderPhase::Opaque
+            | RenderPhase::Transparent => prepass.is_some(),
+            _ => false,
+        };
+
         let lighting_uniforms = world.resource::<StandardLightingUniforms>().clone();
         #[allow(unexpected_cfgs)]
         let shader_index = shader_cached!(
@@ -151,6 +162,11 @@ pub fn standard_material_render(
                     ("", "")
                 } else {
                     ("CASCADE", "")
+                },
+                if can_read_prepass {
+                    ("READ_PREPASS", "")
+                } else {
+                    ("", "")
                 }
             ]
             .iter()
@@ -165,6 +181,7 @@ pub fn standard_material_render(
                 StandardMaterialUniforms::bindings(),
                 StandardLightingUniforms::bindings(),
                 CascadeUniform::bindings(),
+                PrepassTexture::bindings(),
             ]
         )
         .unwrap();
@@ -175,6 +192,8 @@ pub fn standard_material_render(
         ctx.map_uniform_set_locations::<ViewUniforms>();
         ctx.map_uniform_set_locations::<StandardMaterialUniforms>();
         ctx.map_uniform_set_locations::<CascadeUniform>();
+        ctx.map_uniform_set_locations::<PrepassTexture>();
+
         ctx.bind_uniforms_set(
             world.resource::<GpuImages>(),
             world.resource::<ViewUniforms>(),
@@ -191,6 +210,10 @@ pub fn standard_material_render(
                 world.resource::<GpuImages>(),
                 reflect_uniforms.as_ref().unwrap_or(&Default::default()),
             );
+        }
+
+        if can_read_prepass {
+            ctx.bind_uniforms_set(world.resource::<GpuImages>(), &prepass.unwrap());
         }
 
         let mut last_material = None;
