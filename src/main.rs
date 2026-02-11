@@ -1,6 +1,7 @@
 pub mod cascade;
 pub mod copy_depth_prepass;
 pub mod draw_debug;
+pub mod prepare_lighting;
 pub mod std_mat_render;
 
 use std::f32::consts::PI;
@@ -23,7 +24,6 @@ use bevy::{
 use bevy_egui::{EguiContexts, EguiPrimaryContextPass, egui};
 use bevy_mod_mipmap_generator::{MipmapGeneratorPlugin, generate_mipmaps};
 use bgl2::{
-    bevy_standard_lighting::OpenGLStandardLightingPlugin,
     bevy_standard_material::{
         DrawsSortedByMaterial, init_std_shader_includes, sort_std_mat_by_material,
         standard_material_prepare_view,
@@ -45,6 +45,7 @@ use light_volume_baker::{
 use crate::{
     cascade::{CascadeInput, ConvertCascadePlugin},
     draw_debug::DrawDebugPlugin,
+    prepare_lighting::{DynamicLight, PrepareLightingPlugin},
 };
 
 #[derive(FromArgs, Resource, Clone, Default)]
@@ -90,7 +91,7 @@ fn main() {
                 })
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        //present_mode: bevy::window::PresentMode::Immediate,
+                        present_mode: bevy::window::PresentMode::Immediate,
                         ..default()
                     }),
                     ..default()
@@ -138,7 +139,7 @@ fn main() {
             .add_plugins((
                 GlowEguiPlugin::default(),
                 OpenGLRenderPlugins,
-                OpenGLStandardLightingPlugin,
+                PrepareLightingPlugin,
                 DrawDebugPlugin,
             ))
             .add_systems(
@@ -222,7 +223,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, args: Res<Args>
             fov: PI / 3.0,
             ..default()
         }),
-        DepthPrepass,
+        //DepthPrepass,
     ));
 
     if args.temple {
@@ -255,13 +256,22 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, args: Res<Args>
                 |scene_ready: On<SceneInstanceReady>,
                  children: Query<&Children>,
                  mut point_lights: Query<&mut PointLight>,
-                 mut spot_lights: Query<&mut SpotLight>| {
+                 mut spot_lights: Query<&mut SpotLight>,
+                 mut commands: Commands| {
                     for entity in children.iter_descendants(scene_ready.entity) {
                         if let Ok(mut point_light) = point_lights.get_mut(entity) {
                             point_light.shadows_enabled = true;
+                            point_light.intensity *= 50.0;
                         } else if let Ok(mut spot_light) = spot_lights.get_mut(entity) {
                             spot_light.shadows_enabled = true;
-                        }
+                            spot_light.intensity *= 50.0;
+                        } else {
+                            continue;
+                        };
+                        let mut ecmds = commands.entity(entity);
+                        ecmds.insert(DynamicLight);
+                        #[cfg(feature = "asset_baking")]
+                        ecmds.insert(light_volume_baker::rt_scene::NoBake);
                     }
                 },
             );

@@ -18,7 +18,7 @@ vec3 apply_pbr_lighting(vec3 V, vec3 diffuse_color, vec3 F0, vec3 vert_normal, v
     vec3 shadow_uvz = (shadow_clip.xyz / shadow_clip.w) * 0.5 + 0.5;
 
     if (shadow_uvz.x > 0.0 && shadow_uvz.x < 1.0 && shadow_uvz.y > 0.0 && shadow_uvz.y < 1.0 && shadow_uvz.z > 0.0 && shadow_uvz.z < 1.0) {
-        dir_shadow = bilinear_shadow2(ub_shadow_texture, shadow_uvz.xy, shadow_uvz.z, bias, view_resolution);
+        dir_shadow = bilinear_shadow(ub_shadow_texture, shadow_uvz.xy, shadow_uvz.z, bias, view_resolution);
         //dir_shadow *= sample_shadow_map_castano_thirteen(ub_shadow_texture, shadow_uvz.xy, shadow_uvz.z, bias, view_resolution);
     }
     dir_shadow = hardenedKernel(dir_shadow);
@@ -36,6 +36,23 @@ vec3 apply_pbr_lighting(vec3 V, vec3 diffuse_color, vec3 F0, vec3 vert_normal, v
     vec3 env_specular = rgbe2rgb(textureCubeLod(ub_specular_map, vec3(dir.xy, -dir.z), perceptual_roughness * mip_levels)) * ub_env_intensity;
     output_color += environment_light(NoV, F0, perceptual_roughness, diffuse_color, env_diffuse, env_specular) * environment_occlusion;
     #endif // NO_ENV
+
+    #ifndef NO_POINT
+    // Point Lights
+    for (int i = 0; i < MAX_POINT_LIGHTS; i++) {
+        if (i < ub_light_count) {
+            vec4 light_position_range = ub_point_light_position_range[i];
+            vec3 to_light = light_position_range.xyz - ws_position;
+            if (length(to_light) < light_position_range.w) {
+                vec4 light_color_radius = ub_point_light_color_radius[i];
+                vec4 dos = ub_spot_light_dir_offset_scale[i];
+                vec3 spot_dir = octahedral_decode(dos.xy);
+                output_color += point_light(V, diffuse_color, F0, normal, roughness, diffuse_transmission, to_light,
+                        light_position_range.w, light_color_radius.rgb, spot_dir, dos.z, dos.w);
+            }
+        }
+    }
+    #endif // NO_POINT
 
     return output_color;
 }
@@ -72,18 +89,28 @@ int sampleTrilinearCorner(vec3 f, float u) {
     // CDF walk
     float c = w0;
     if (u < c) return 0;
-    c += w1; if (u < c) return 1;
-    c += w2; if (u < c) return 2;
-    c += w3; if (u < c) return 3;
-    c += w4; if (u < c) return 4;
-    c += w5; if (u < c) return 5;
-    c += w6; if (u < c) return 6;
+    c += w1;
+    if (u < c) return 1;
+    c += w2;
+    if (u < c) return 2;
+    c += w3;
+    if (u < c) return 3;
+    c += w4;
+    if (u < c) return 4;
+    c += w5;
+    if (u < c) return 5;
+    c += w6;
+    if (u < c) return 6;
     return 7;
 }
 
 // No bit shift on glsl 120
-float hash(float n) { return fract(sin(n) * 1e4); }
-float hash(vec2 p) { return fract(1e4 * sin(17.0 * p.x + p.y * 0.1) * (0.1 + abs(sin(p.y * 13.0 + p.x)))); }
+float hash(float n) {
+    return fract(sin(n) * 1e4);
+}
+float hash(vec2 p) {
+    return fract(1e4 * sin(17.0 * p.x + p.y * 0.1) * (0.1 + abs(sin(p.y * 13.0 + p.x))));
+}
 
 float signNotZero(in float k) {
     return (k >= 0.0) ? 1.0 : -1.0;
@@ -129,7 +156,6 @@ vec3 corner_offset(int i) {
     // And in webgl use bit shifting
 }
 
-
 vec4 sample_cascade_stochastic(vec3 ws_position, vec3 ws_normal, vec2 screen_uv, vec3 diffuse_color) {
     vec3 ls_position = (ws_position - ub_cascade_position) / ub_cascade_spacing;
     vec3 base = floor(ls_position);
@@ -152,6 +178,8 @@ vec4 sample_cascade_stochastic(vec3 ws_position, vec3 ws_normal, vec2 screen_uv,
     vec3 color = probe_irradiance * diffuse_color * 1000.0 * 5.0;
 
     return vec4(color, probe_id_info.z);
+
+    return vec4(0.0);
 }
 
 vec3 sample_fog(float blend, float seed, vec3 atm_color, vec3 sample_normal, vec2 screen_uv, vec3 V) {
@@ -164,11 +192,15 @@ vec3 sample_fog(float blend, float seed, vec3 atm_color, vec3 sample_normal, vec
     vec4 shadow_clip = ub_shadow_clip_from_world * vec4(sample_pos, 1.0);
     vec3 shadow_uvz = (shadow_clip.xyz / shadow_clip.w) * 0.5 + 0.5;
 
-    if (shadow_uvz.x > 0.0 && shadow_uvz.x < 1.0 && shadow_uvz.y > 0.0 && shadow_uvz.y < 1.0 && shadow_uvz.z > 0.0 && shadow_uvz.z < 1.0) {
-        atm_dir_shadow = bilinear_shadow2(ub_shadow_texture, shadow_uvz.xy, shadow_uvz.z, 0.0, ub_view_resolution);
-    }
-    color += directional_light(V, vec3(0.0), atm_color, sample_normal, 0.5, 0.0, atm_dir_shadow,
-                                      ub_directional_light_dir, ub_directional_light_color);
+    //if (shadow_uvz.x > 0.0 && shadow_uvz.x < 1.0 && shadow_uvz.y > 0.0 && shadow_uvz.y < 1.0 && shadow_uvz.z > 0.0 && shadow_uvz.z < 1.0) {
+    //    atm_dir_shadow = bilinear_shadow2(ub_shadow_texture, shadow_uvz.xy, shadow_uvz.z, 0.0, ub_view_resolution);
+    //}
+    //color += directional_light(V, vec3(0.0), atm_color, sample_normal, 0.5, 0.0, atm_dir_shadow,
+    //        ub_directional_light_dir, ub_directional_light_color);
+
+    color += apply_pbr_lighting(V, atm_color, vec3(0.0), sample_normal, sample_normal, 1.0,
+            0.0, 0.0, screen_uv, ub_view_resolution, sample_pos, atm_dir_shadow);
+
     return color;
 }
 
@@ -260,7 +292,7 @@ void main() {
     float dir_shadow = 0.0;
     {
         #ifdef CASCADE
-        vec4 col_shad = sample_cascade_stochastic(ws_position, normal, screen_uv, diffuse_color );
+        vec4 col_shad = sample_cascade_stochastic(ws_position, normal, screen_uv, diffuse_color);
         output_color += col_shad.rgb;
         dir_shadow = col_shad.w;
 
@@ -269,23 +301,18 @@ void main() {
         #endif //CASCADE
     }
 
-
     output_color += apply_pbr_lighting(V, diffuse_color, F0, vert_normal, normal, perceptual_roughness,
             env_occ, ub_diffuse_transmission, screen_uv, ub_view_resolution, ws_position, dir_shadow);
 
     {
-
         float seed = hash(screen_uv + hash(ub_frame - 123.456));
-        float f = 0.5;
-        vec3 fog_color = f * sample_fog(3.0, seed, vec3(1.0), vec3(0.0, 1.0, 0.0), screen_uv, V);
+        vec3 fog_color = sample_fog(3.0, seed, vec3(1.0), vec3(0.0, 1.0, 0.0), screen_uv, V);
         seed = hash(screen_uv + 2.0 + hash(ub_frame - 567.345));
-        fog_color += (1.0 - f) * sample_fog(3.0,seed, vec3(1.0), V, screen_uv, V);
 
         float frag_dist = length(ub_view_position - ws_position) * 0.02;
-        f = min(frag_dist, 1.0);
+        float f = min(frag_dist, 1.0);
         output_color = fog_color * f + (1.0 - f) * output_color;
     }
-
 
     gl_FragColor = vec4(ub_view_exposure * output_color * blender_exposure, base_color.a);
     #ifdef WRITE_REFLECTION

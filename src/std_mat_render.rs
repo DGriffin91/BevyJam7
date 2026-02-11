@@ -4,8 +4,7 @@ use bgl2::{
     UniformSet, UniformValue,
     bevy_standard_lighting::StandardLightingUniforms,
     bevy_standard_material::{
-        DrawsSortedByMaterial, ReadReflection, SkipReflection, StandardMaterialUniforms,
-        ViewUniforms,
+        DrawsSortedByMaterial, GameMaterialUniforms, ReadReflection, SkipReflection, ViewUniforms,
     },
     command_encoder::CommandEncoder,
     flip_cull_mode,
@@ -22,6 +21,7 @@ use itertools::Either;
 
 use crate::cascade::{CascadeUniform, select_cascade, transform_aabb};
 use crate::copy_depth_prepass::PrepassTexture;
+use crate::prepare_lighting::GameLightingUniforms;
 
 pub fn standard_material_render(
     mesh_entities: Query<(
@@ -70,7 +70,7 @@ pub fn standard_material_render(
     }
 
     let mut draws = Vec::new();
-    let mut render_materials: Vec<StandardMaterialUniforms> = Vec::new();
+    let mut render_materials: Vec<GameMaterialUniforms> = Vec::new();
 
     let mut last_material = None;
     let mut current_material_idx = 0;
@@ -150,7 +150,7 @@ pub fn standard_material_render(
             _ => false,
         };
 
-        let lighting_uniforms = world.resource::<StandardLightingUniforms>().clone();
+        let lighting_uniforms = world.resource::<GameLightingUniforms>().clone();
         #[allow(unexpected_cfgs)]
         let shader_index = shader_cached!(
             ctx,
@@ -178,8 +178,8 @@ pub fn standard_material_render(
             .chain(phase.shader_defs().iter()),
             &[
                 ViewUniforms::bindings(),
-                StandardMaterialUniforms::bindings(),
-                StandardLightingUniforms::bindings(),
+                GameMaterialUniforms::bindings(),
+                GameLightingUniforms::bindings(),
                 CascadeUniform::bindings(),
                 PrepassTexture::bindings(),
             ]
@@ -190,7 +190,7 @@ pub fn standard_material_render(
         ctx.use_cached_program(shader_index);
 
         ctx.map_uniform_set_locations::<ViewUniforms>();
-        ctx.map_uniform_set_locations::<StandardMaterialUniforms>();
+        ctx.map_uniform_set_locations::<GameMaterialUniforms>();
         ctx.map_uniform_set_locations::<CascadeUniform>();
         ctx.map_uniform_set_locations::<PrepassTexture>();
 
@@ -201,7 +201,7 @@ pub fn standard_material_render(
 
         let mut reflect_bool_location = None;
         if !phase.depth_only() {
-            ctx.map_uniform_set_locations::<StandardLightingUniforms>();
+            ctx.map_uniform_set_locations::<GameLightingUniforms>();
             ctx.bind_uniforms_set(world.resource::<GpuImages>(), &lighting_uniforms);
 
             reflect_bool_location = ctx.get_uniform_location("read_reflection");
