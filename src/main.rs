@@ -13,6 +13,7 @@ use bevy::{
     light::light_consts::lux::DIRECT_SUNLIGHT,
     prelude::*,
     render::{RenderPlugin, settings::WgpuSettings},
+    scene::SceneInstanceReady,
     window::{PresentMode, WindowMode},
     winit::WinitSettings,
 };
@@ -226,7 +227,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, args: Res<Args>
         commands.spawn(CascadeInput {
             name: String::from("nave"),
             ws_aabb: obvhs::aabb::Aabb::new(start, end),
-            resolution: vec3a(2.0, 2.0, 2.0),
+            resolution: vec3a(1.5, 1.5, 1.5),
         });
 
         let start = vec3a(10.5, 0.1, -25.5);
@@ -241,6 +242,25 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, args: Res<Args>
             //GltfAssetLabel::Scene(0).from_asset("testing/models/temple/temple.gltf"),
             GltfAssetLabel::Scene(0).from_asset("testing/models/temple_test/temple_test.gltf"),
         )));
+
+        commands
+            .spawn(SceneRoot(asset_server.load(
+                GltfAssetLabel::Scene(0).from_asset("testing/temple_lights_test.gltf"),
+            )))
+            .observe(
+                |scene_ready: On<SceneInstanceReady>,
+                 children: Query<&Children>,
+                 mut point_lights: Query<&mut PointLight>,
+                 mut spot_lights: Query<&mut SpotLight>| {
+                    for entity in children.iter_descendants(scene_ready.entity) {
+                        if let Ok(mut point_light) = point_lights.get_mut(entity) {
+                            point_light.shadows_enabled = true;
+                        } else if let Ok(mut spot_light) = spot_lights.get_mut(entity) {
+                            spot_light.shadows_enabled = true;
+                        }
+                    }
+                },
+            );
     }
 }
 
