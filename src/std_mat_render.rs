@@ -19,10 +19,8 @@ use bgl2::{
     shader_cached,
 };
 use itertools::Either;
-use obvhs::ray::Ray;
 
 use crate::cascade::{CascadeUniform, select_cascade, transform_aabb};
-use crate::draw_debug::DebugLines;
 
 pub fn standard_material_render(
     mesh_entities: Query<(
@@ -45,7 +43,6 @@ pub fn standard_material_render(
     mut enc: ResMut<CommandEncoder>,
     shadow: Option<Res<DirectionalLightShadow>>,
     cascades: Query<&CascadeUniform>,
-    mut debug: ResMut<DebugLines>,
 ) {
     let view_uniforms = view_uniforms.clone();
     if cascades.iter().len() == 0 {

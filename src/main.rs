@@ -288,10 +288,19 @@ fn drag_drop_gltf(
         match e {
             FileDragAndDrop::DroppedFile { path_buf, .. } => {
                 if added.insert(path_buf.clone()) {
+                    use crate::cascade::SceneBakeName;
+
                     let path = relative_to_assets(&path_buf).unwrap();
+                    let scene_bake_name = path
+                        .file_prefix()
+                        .unwrap_or_default()
+                        .to_str()
+                        .unwrap_or_default()
+                        .to_string();
                     commands
-                        .spawn(SceneRoot(
-                            asset_server.load(GltfAssetLabel::Scene(0).from_asset(path)),
+                        .spawn((
+                            SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(path))),
+                            SceneBakeName(scene_bake_name),
                         ))
                         .observe(blender_cascades);
                 }

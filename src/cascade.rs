@@ -26,12 +26,21 @@ struct ProbeBakeExtras {
     _other: HashMap<String, serde_json::Value>,
 }
 
+#[derive(Component, Clone, Default)]
+pub struct SceneBakeName(pub String);
+
 pub fn blender_cascades(
     scene_ready: On<SceneInstanceReady>,
     mut commands: Commands,
     children: Query<&Children>,
     gltf_extras: Query<(Entity, &Name, &Transform, &GltfExtras)>,
+    scene_names: Query<&SceneBakeName>,
 ) {
+    let name_prefix = scene_names
+        .get(scene_ready.entity)
+        .cloned()
+        .unwrap_or_default()
+        .0;
     for entity in children.iter_descendants(scene_ready.entity) {
         if let Ok((entity, name, trans, extras)) = gltf_extras.get(entity) {
             if name.contains("BAKE") {
@@ -41,10 +50,12 @@ pub fn blender_cascades(
                     let position = trans.translation.to_vec3a();
                     let start = position - scale;
                     let end = position + scale;
+                    let mut full_name = name_prefix.clone();
+                    full_name.push_str(name);
                     commands
                         .entity(entity)
                         .insert(CascadeInput {
-                            name: name.to_string(),
+                            name: full_name,
                             ws_aabb: obvhs::aabb::Aabb::new(start, end),
                             resolution: vec3a(bake_res[0], bake_res[1], bake_res[2]),
                         })
