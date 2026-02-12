@@ -1,6 +1,7 @@
 pub mod cascade;
 pub mod copy_depth_prepass;
 pub mod draw_debug;
+pub mod post_process;
 pub mod prepare_lighting;
 pub mod std_mat_render;
 
@@ -45,6 +46,7 @@ use light_volume_baker::{
 use crate::{
     cascade::{CascadeInput, ConvertCascadePlugin},
     draw_debug::DrawDebugPlugin,
+    post_process::PostProcessPlugin,
     prepare_lighting::{DynamicLight, PrepareLightingPlugin},
     std_mat_render::{Fog, generate_tangets},
 };
@@ -108,6 +110,7 @@ fn main() {
             LogDiagnosticsPlugin::default(),
             FrameTimeDiagnosticsPlugin::default(),
             MipmapGeneratorPlugin,
+            PostProcessPlugin,
         ));
 
     #[cfg(feature = "asset_baking")]
@@ -163,7 +166,9 @@ fn main() {
     }
 
     app.init_resource::<Fog>()
-        .add_plugins(ConvertCascadePlugin)
+        .add_plugins((
+            ConvertCascadePlugin, //PostProcessPlugin
+        ))
         .add_systems(Startup, setup)
         .add_systems(Update, generate_mipmaps::<StandardMaterial>)
         .add_systems(Update, window_control)

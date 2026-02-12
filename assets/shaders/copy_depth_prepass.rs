@@ -18,9 +18,9 @@ pub fn copy_depth_prepass(
 
     let mut just_init = false;
     let mut prepass = if let Some(prepass) = prepass {
+        just_init = true;
         prepass.clone()
     } else {
-        just_init = true;
         let texture_ref = TextureRef::new();
         let prepass = PrepassTexture {
             texture: texture_ref.clone(),

@@ -312,7 +312,6 @@ pub fn generate_tangets(
         if let Some(mesh) = bevy_meshes.get_mut(*mesh_h) {
             if mesh.attribute(Mesh::ATTRIBUTE_TANGENT).is_none() {
                 mesh.generate_tangents().unwrap();
-                dbg!("NO TANGENTS");
             }
         }
     }
