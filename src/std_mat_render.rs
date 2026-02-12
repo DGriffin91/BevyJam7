@@ -3,7 +3,8 @@ use bgl2::bevy_standard_lighting::DEFAULT_MAX_LIGHTS_DEF;
 use bgl2::{
     UniformSet, UniformValue,
     bevy_standard_material::{
-        DrawsSortedByMaterial, GameMaterialUniforms, ReadReflection, SkipReflection, ViewUniforms,
+        DrawsSortedByMaterial, ReadReflection, SkipReflection, StandardMaterialUniforms,
+        ViewUniforms,
     },
     command_encoder::CommandEncoder,
     flip_cull_mode,
@@ -80,7 +81,7 @@ pub fn standard_material_render(
     }
 
     let mut draws = Vec::new();
-    let mut render_materials: Vec<GameMaterialUniforms> = Vec::new();
+    let mut render_materials: Vec<StandardMaterialUniforms> = Vec::new();
 
     let v_pos = view_uniforms.view_position.to_vec3a();
     let view_cascade_idx = select_cascade(
@@ -208,7 +209,7 @@ pub fn standard_material_render(
             .chain(phase.shader_defs().iter()),
             &[
                 ViewUniforms::bindings(),
-                GameMaterialUniforms::bindings(),
+                StandardMaterialUniforms::bindings(),
                 GameLightingUniforms::bindings(),
                 CascadeUniform::bindings(),
                 CascadeViewUniform::bindings(),
@@ -222,7 +223,7 @@ pub fn standard_material_render(
         ctx.use_cached_program(shader_index);
 
         ctx.map_uniform_set_locations::<ViewUniforms>();
-        ctx.map_uniform_set_locations::<GameMaterialUniforms>();
+        ctx.map_uniform_set_locations::<StandardMaterialUniforms>();
         ctx.map_uniform_set_locations::<CascadeUniform>();
         ctx.map_uniform_set_locations::<CascadeViewUniform>();
         ctx.map_uniform_set_locations::<PrepassTexture>();
@@ -290,6 +291,7 @@ pub fn standard_material_render(
                 ctx.set_cull_mode(flip_cull_mode(material.cull_mode, phase.reflection()));
                 ctx.bind_uniforms_set(world.resource::<GpuImages>(), material);
             }
+
             world
                 .resource_mut::<GpuMeshes>()
                 .draw_mesh(ctx, draw.mesh.id(), shader_index);
