@@ -1,5 +1,7 @@
 # Bevy GitHub CI Template
 
+`bevy run --no-default-features --release web --open`
+
 This repo show how to set up CI on a GitHub project for Bevy.
 
 It creates two workflows:
