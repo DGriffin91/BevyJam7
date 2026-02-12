@@ -101,6 +101,8 @@ pub fn select_cascade<'a, I>(
 where
     I: IntoIterator<Item = &'a CascadeUniform>,
 {
+    // TODO cache selected cascade
+
     let draw_size = draw_aabb.diagonal().length();
     let draw_center = draw_aabb.center();
     let mut draw_dist_to_cascade = f32::MAX;
@@ -166,10 +168,43 @@ pub struct CascadeUniform {
     pub id_texel: Vec2,
 }
 
+// TODO UniformSet for newtype?
+#[derive(UniformSet, Component, Clone)]
+#[uniform_set(prefix = "ubv_")]
+pub struct CascadeViewUniform {
+    pub probes_gi: Handle<Image>,
+    pub probes_id: Handle<Image>,
+    pub cascade_position: Vec3,
+    pub cascade_res: Vec3,
+    pub cascade_spacing: Vec3,
+    /// Before padding
+    pub probe_size: f32,
+    pub gi_texel: f32,
+    pub id_texel: Vec2,
+}
+
 impl CascadeInput {
     pub fn into_uniform(&self, asset_server: &AssetServer) -> CascadeUniform {
         let cascade_res = (self.ws_aabb.diagonal() / self.resolution).ceil();
         CascadeUniform {
+            probes_gi: asset_server.load(format!("bake/probes_gi_{}.png", self.name)),
+            probes_id: asset_server.load_with_settings(
+                format!("bake/probes_id_{}.png", self.name),
+                |settings: &mut ImageLoaderSettings| settings.sampler = sampler_nearest_clamp(),
+            ),
+            cascade_position: self.ws_aabb.min.into(),
+            cascade_res: cascade_res.into(),
+            cascade_spacing: self.resolution.into(),
+            probe_size: 6.0,
+            gi_texel: 1.0 / 2048.0,
+            id_texel: vec2(1.0 / cascade_res.x, 1.0 / (cascade_res.y * cascade_res.z)),
+        }
+    }
+
+    // Note: if making changes copy into_uniform() and rename to CascadeViewUniform
+    pub fn into_view_uniform(&self, asset_server: &AssetServer) -> CascadeViewUniform {
+        let cascade_res = (self.ws_aabb.diagonal() / self.resolution).ceil();
+        CascadeViewUniform {
             probes_gi: asset_server.load(format!("bake/probes_gi_{}.png", self.name)),
             probes_id: asset_server.load_with_settings(
                 format!("bake/probes_id_{}.png", self.name),
@@ -208,6 +243,7 @@ pub fn generate_cascade_data(
     for (entity, input) in &input_probes {
         let mut ecmds = commands.entity(entity);
         ecmds.insert(input.into_uniform(&asset_server));
+        ecmds.insert(input.into_view_uniform(&asset_server));
         #[cfg(feature = "asset_baking")]
         ecmds.insert(input.into_cascade_data());
     }

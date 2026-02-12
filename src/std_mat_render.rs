@@ -19,7 +19,7 @@ use bgl2::{
 use itertools::Either;
 use uniform_set_derive::UniformSet;
 
-use crate::cascade::{CascadeUniform, select_cascade, transform_aabb};
+use crate::cascade::{CascadeUniform, CascadeViewUniform, select_cascade, transform_aabb};
 use crate::copy_depth_prepass::PrepassTexture;
 use crate::draw_debug::DebugLines;
 use crate::prepare_lighting::GameLightingUniforms;
@@ -51,6 +51,7 @@ pub fn standard_material_render(
     mut enc: ResMut<CommandEncoder>,
     shadow: Option<Res<DirectionalLightShadow>>,
     cascades: Query<&CascadeUniform>,
+    view_cascades: Query<&CascadeViewUniform>,
     prepass: Option<ResMut<PrepassTexture>>,
     fog: Option<Res<Fog>>,
     mut debug: ResMut<DebugLines>,
@@ -80,6 +81,13 @@ pub fn standard_material_render(
 
     let mut draws = Vec::new();
     let mut render_materials: Vec<GameMaterialUniforms> = Vec::new();
+
+    let v_pos = view_uniforms.view_position.to_vec3a();
+    let view_cascade_idx = select_cascade(
+        cascades,
+        obvhs::aabb::Aabb::new(v_pos - 0.01, v_pos + 0.01),
+        &mut debug,
+    );
 
     let mut last_material = None;
     let mut current_material_idx = 0;
@@ -151,6 +159,7 @@ pub fn standard_material_render(
     let fog = fog.as_deref().cloned();
 
     let cascades = cascades.iter().cloned().collect::<Vec<_>>();
+    let view_cascades = view_cascades.iter().cloned().collect::<Vec<_>>();
     enc.record(move |ctx, world| {
         let can_read_prepass = match phase {
             RenderPhase::ReflectOpaque
@@ -202,6 +211,7 @@ pub fn standard_material_render(
                 GameMaterialUniforms::bindings(),
                 GameLightingUniforms::bindings(),
                 CascadeUniform::bindings(),
+                CascadeViewUniform::bindings(),
                 PrepassTexture::bindings(),
                 Fog::bindings(),
             ]
@@ -214,6 +224,7 @@ pub fn standard_material_render(
         ctx.map_uniform_set_locations::<ViewUniforms>();
         ctx.map_uniform_set_locations::<GameMaterialUniforms>();
         ctx.map_uniform_set_locations::<CascadeUniform>();
+        ctx.map_uniform_set_locations::<CascadeViewUniform>();
         ctx.map_uniform_set_locations::<PrepassTexture>();
         ctx.map_uniform_set_locations::<Fog>();
 
@@ -258,6 +269,12 @@ pub fn standard_material_render(
             let images = world.resource::<GpuImages>();
 
             if let Some(cascade) = cascades.get(draw.cascade_idx as usize) {
+                ctx.bind_uniforms_set(images, cascade);
+            } else {
+                warn_once!("cascade {} not found", draw.cascade_idx);
+            }
+
+            if let Some(cascade) = view_cascades.get(view_cascade_idx as usize) {
                 ctx.bind_uniforms_set(images, cascade);
             } else {
                 warn_once!("cascade {} not found", draw.cascade_idx);

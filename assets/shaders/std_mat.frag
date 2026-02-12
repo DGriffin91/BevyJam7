@@ -180,9 +180,40 @@ vec4 sample_cascade_stochastic(vec3 ws_position, vec3 ws_normal, vec2 screen_uv,
     return vec4(color, probe_id_info.z);
 }
 
+vec4 sample_view_cascade_stochastic(vec3 ws_position, vec3 ws_normal, vec2 screen_uv, vec3 diffuse_color) {
+    vec3 ls_position = (ws_position - ubv_cascade_position) / ubv_cascade_spacing;
+    vec3 base = floor(ls_position);
+    base = min(max(base, vec3(0.0)), ubv_cascade_res - 2.0);
+    vec3 alpha = saturate(ls_position - base);
+
+    vec2 id_texel_half = ubv_id_texel * 0.5;
+
+    int i = sampleTrilinearCorner(alpha, hash(screen_uv + hash(ub_frame)));
+    vec3 offset = corner_offset(i);
+    vec3 probe_pos = base + offset;
+    vec2 ls_id_position = vec2(probe_pos.x, probe_pos.y + probe_pos.z * ubv_cascade_res.y);
+    vec3 trilinear = mix(1.0 - alpha, alpha, offset);
+    float probe_pad_size = ubv_probe_size + 2.0;
+    vec2 oct = octEncode(ws_normal) * 0.5 + 0.5;
+    vec4 probe_id_info = texture2D(ubv_probes_id, id_texel_half + ubv_id_texel * ls_id_position);
+    vec2 probe_xy_id = floor(probe_id_info.xy * 255.0 + 0.5);
+    vec2 uv = ubv_gi_texel + oct * ubv_probe_size * ubv_gi_texel + (ubv_gi_texel * probe_pad_size * probe_xy_id);
+    vec3 probe_irradiance = 0.5 * PI * rgbe2rgb(texture2D(ubv_probes_gi, uv));
+    vec3 color = probe_irradiance * diffuse_color * 1000.0 * 5.0;
+
+    return vec4(color, probe_id_info.z);
+}
+
 vec3 sample_fog(float blend, float seed, vec3 atm_color, vec3 sample_normal, vec2 screen_uv, vec3 V) {
     vec3 sample_pos = ws_position * (1.0 - seed) + seed * ub_view_position;
-    vec4 col_shad = sample_cascade_stochastic(sample_pos, sample_normal, screen_uv, vec3(blend));
+    vec4 col_shad = vec4(0.0);
+    bool inside_view_cascade = all(greaterThan(sample_pos, ubv_cascade_position)) &&
+            all(lessThan(sample_pos, ubv_cascade_position + ubv_cascade_spacing * ubv_cascade_res));
+    if (inside_view_cascade) {
+        col_shad = sample_view_cascade_stochastic(sample_pos, sample_normal, screen_uv, vec3(blend));
+    } else {
+        col_shad = sample_cascade_stochastic(sample_pos, sample_normal, screen_uv, vec3(blend));
+    }
     vec3 color = col_shad.rgb * atm_color;
     //output_color /= blend;
 
