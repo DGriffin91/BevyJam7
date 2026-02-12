@@ -15,7 +15,7 @@ pub struct PostProcessPlugin;
 
 impl Plugin for PostProcessPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
+        app.init_resource::<PostProcessSettings>().add_systems(
             PostUpdate,
             (copy_render_target, render_post_process)
                 .chain()
@@ -23,13 +23,24 @@ impl Plugin for PostProcessPlugin {
         );
     }
 }
+#[derive(Resource, Default)]
+pub struct PostProcessSettings {
+    pub enable: bool,
+}
 
 #[derive(Resource)]
 struct PostProcessBuffers {
     positions_vbo: glow::Buffer,
 }
 
-fn render_post_process(mut enc: ResMut<CommandEncoder>, render_texture: If<Res<RenderTexture>>) {
+fn render_post_process(
+    mut enc: ResMut<CommandEncoder>,
+    render_texture: If<Res<RenderTexture>>,
+    settings: Res<PostProcessSettings>,
+) {
+    if !settings.enable {
+        return;
+    }
     let render_texture = render_texture.clone();
     enc.record(|ctx, world| {
         #[allow(unexpected_cfgs)]
@@ -89,7 +100,11 @@ pub fn copy_render_target(
     bevy_window: Single<&Window>,
     mut enc: ResMut<CommandEncoder>,
     render_target: Option<ResMut<RenderTexture>>,
+    settings: Res<PostProcessSettings>,
 ) {
+    if !settings.enable {
+        return;
+    }
     let width = bevy_window.physical_width().max(1);
     let height = bevy_window.physical_height().max(1);
 

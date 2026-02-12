@@ -3,6 +3,8 @@ pub mod copy_depth_prepass;
 pub mod draw_debug;
 pub mod post_process;
 pub mod prepare_lighting;
+pub mod scene_hallway;
+pub mod scene_temple;
 pub mod std_mat_render;
 
 use std::f32::consts::PI;
@@ -17,7 +19,6 @@ use bevy::{
     light::light_consts::lux::DIRECT_SUNLIGHT,
     prelude::*,
     render::{RenderPlugin, settings::WgpuSettings},
-    scene::SceneInstanceReady,
     window::WindowMode,
     winit::WinitSettings,
 };
@@ -44,10 +45,10 @@ use light_volume_baker::{
 };
 
 use crate::{
-    cascade::{CascadeInput, ConvertCascadePlugin},
+    cascade::ConvertCascadePlugin,
     draw_debug::DrawDebugPlugin,
     post_process::PostProcessPlugin,
-    prepare_lighting::{DynamicLight, PrepareLightingPlugin},
+    prepare_lighting::PrepareLightingPlugin,
     std_mat_render::{Fog, generate_tangets},
 };
 
@@ -182,6 +183,7 @@ fn dev_ui(
     mut contexts: EguiContexts,
     #[cfg(feature = "asset_baking")] cascades: Query<Entity, With<CascadeData>>,
     mut camera: Single<&mut FreeCameraState>,
+    scene_contents: Query<Entity, With<SceneContents>>,
 ) {
     if let Ok(ctx) = contexts.ctx_mut() {
         camera.enabled = !(ctx.wants_pointer_input() || ctx.wants_keyboard_input());
@@ -199,22 +201,36 @@ fn dev_ui(
                         .insert((NeedsGpuBake, NeedsCourseBake, NeedsFineBake));
                 }
             }
+            let mut despawn_scene_contents = false;
+            if ui.button("Load hallway").clicked() {
+                use crate::scene_hallway::load_hallway;
+                let id = commands.register_system(load_hallway);
+                commands.run_system(id);
+                despawn_scene_contents = true;
+            }
+            if ui.button("Load Temple").clicked() {
+                use crate::scene_temple::load_temple;
+                let id = commands.register_system(load_temple);
+                commands.run_system(id);
+                despawn_scene_contents = true;
+            }
+
+            if despawn_scene_contents {
+                for entity in &scene_contents {
+                    commands.entity(entity).despawn();
+                }
+            }
         }
     });
 }
 
-fn setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    args: Res<Args>,
-    mut fog: ResMut<Fog>,
-) {
+fn setup(mut commands: Commands, args: Res<Args>) {
     // Sun
     commands.spawn((
         Transform::from_xyz(0.0, 0.0, 0.0).looking_at(vec3(4.0, -10.0, 3.9), Vec3::Y),
         DirectionalLight {
             color: Color::srgb(1.0, 0.9, 0.8),
-            illuminance: DIRECT_SUNLIGHT * 0.0,
+            illuminance: DIRECT_SUNLIGHT,
             shadows_enabled: true,
             shadow_depth_bias: 0.0,
             shadow_normal_bias: 0.0,
@@ -238,78 +254,6 @@ fn setup(
         }),
         DepthPrepass,
     ));
-    fog.fog_color = vec4(5.0, 5.0, 5.0, 1.0);
-
-    commands
-        .spawn(SceneRoot(asset_server.load(
-            GltfAssetLabel::Scene(0).from_asset("testing/models/Hallway.gltf"),
-        )))
-        .observe(cascade::blender_cascades)
-        .observe(
-            |scene_ready: On<SceneInstanceReady>,
-             children: Query<&Children>,
-             mut point_lights: Query<&mut PointLight>,
-             mut spot_lights: Query<&mut SpotLight>| {
-                for entity in children.iter_descendants(scene_ready.entity) {
-                    if let Ok(mut point_light) = point_lights.get_mut(entity) {
-                        point_light.shadows_enabled = true;
-                    } else if let Ok(mut spot_light) = spot_lights.get_mut(entity) {
-                        spot_light.shadows_enabled = true;
-                    }
-                }
-            },
-        );
-
-    if args.temple {
-        let start = vec3a(-47.5, 0.1, -25.5);
-        let end = vec3a(36.0, 56.0, 34.0) * 2.0 + start;
-        commands.spawn(CascadeInput {
-            name: String::from("nave"),
-            ws_aabb: obvhs::aabb::Aabb::new(start, end),
-            resolution: vec3a(1.5, 1.5, 1.5),
-        });
-
-        let start = vec3a(10.5, 0.1, -25.5);
-        let end = vec3a(26.0, 86.0, 34.0) * 2.0 + start;
-        commands.spawn(CascadeInput {
-            name: String::from("tower"),
-            ws_aabb: obvhs::aabb::Aabb::new(start, end),
-            resolution: vec3a(2.0, 2.0, 2.0),
-        });
-
-        commands.spawn(SceneRoot(asset_server.load(
-            //GltfAssetLabel::Scene(0).from_asset("testing/models/temple/temple.gltf"),
-            GltfAssetLabel::Scene(0).from_asset("testing/models/temple_test/temple_test.gltf"),
-        )));
-
-        commands
-            .spawn(SceneRoot(asset_server.load(
-                GltfAssetLabel::Scene(0).from_asset("testing/temple_lights_test.gltf"),
-            )))
-            .observe(
-                |scene_ready: On<SceneInstanceReady>,
-                 children: Query<&Children>,
-                 mut point_lights: Query<&mut PointLight>,
-                 mut spot_lights: Query<&mut SpotLight>,
-                 mut commands: Commands| {
-                    for entity in children.iter_descendants(scene_ready.entity) {
-                        if let Ok(mut point_light) = point_lights.get_mut(entity) {
-                            point_light.shadows_enabled = true;
-                            point_light.intensity *= 50.0;
-                        } else if let Ok(mut spot_light) = spot_lights.get_mut(entity) {
-                            spot_light.shadows_enabled = true;
-                            spot_light.intensity *= 50.0;
-                        } else {
-                            continue;
-                        };
-                        let mut ecmds = commands.entity(entity);
-                        ecmds.insert(DynamicLight);
-                        #[cfg(feature = "asset_baking")]
-                        ecmds.insert(light_volume_baker::rt_scene::NoBake);
-                    }
-                },
-            );
-    }
 }
 
 fn window_control(keyboard_input: Res<ButtonInput<KeyCode>>, mut window: Single<&mut Window>) {
@@ -362,3 +306,6 @@ fn drag_drop_gltf(
 fn relative_to_assets(path: &std::path::Path) -> Option<std::path::PathBuf> {
     pathdiff::diff_paths(path, std::env::current_dir().ok()?.join("assets"))
 }
+
+#[derive(Component)]
+pub struct SceneContents;
