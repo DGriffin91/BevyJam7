@@ -37,19 +37,27 @@ pub fn load_temple(
     fog.fog_color = vec4(1.0, 1.0, 1.0, 1.0);
     let start = vec3a(-47.5, 0.1, -25.5);
     let end = vec3a(36.0, 56.0, 34.0) * 2.0 + start;
-    commands.spawn(CascadeInput {
-        name: String::from("nave"),
-        ws_aabb: obvhs::aabb::Aabb::new(start, end),
-        resolution: vec3a(1.5, 1.5, 1.5),
-    });
+    commands.spawn((
+        CascadeInput {
+            name: String::from("nave"),
+            ws_aabb: obvhs::aabb::Aabb::new(start, end),
+            resolution: vec3a(1.5, 1.5, 1.5),
+        },
+        SceneContents,
+        TempleScene,
+    ));
 
     let start = vec3a(10.5, 0.1, -25.5);
     let end = vec3a(26.0, 86.0, 34.0) * 2.0 + start;
-    commands.spawn(CascadeInput {
-        name: String::from("tower"),
-        ws_aabb: obvhs::aabb::Aabb::new(start, end),
-        resolution: vec3a(2.0, 2.0, 2.0),
-    });
+    commands.spawn((
+        CascadeInput {
+            name: String::from("tower"),
+            ws_aabb: obvhs::aabb::Aabb::new(start, end),
+            resolution: vec3a(2.0, 2.0, 2.0),
+        },
+        SceneContents,
+        TempleScene,
+    ));
 
     commands.spawn((
         SceneRoot(asset_server.load(

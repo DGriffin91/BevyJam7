@@ -4,6 +4,7 @@ pub mod draw_debug;
 pub mod post_process;
 pub mod prepare_lighting;
 pub mod scene_hallway;
+pub mod scene_store;
 pub mod scene_temple;
 pub mod std_mat_render;
 
@@ -202,6 +203,12 @@ fn dev_ui(
                 }
             }
             let mut despawn_scene_contents = false;
+            if ui.button("Load Store").clicked() {
+                use crate::scene_store::load_store;
+                let id = commands.register_system(load_store);
+                commands.run_system(id);
+                despawn_scene_contents = true;
+            }
             if ui.button("Load hallway").clicked() {
                 use crate::scene_hallway::load_hallway;
                 let id = commands.register_system(load_hallway);

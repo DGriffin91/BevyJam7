@@ -1,4 +1,4 @@
-use bevy::{prelude::*, scene::SceneInstanceReady};
+use bevy::{math::VectorSpace, prelude::*, scene::SceneInstanceReady};
 
 use crate::{
     SceneContents,
@@ -8,9 +8,9 @@ use crate::{
 };
 
 #[derive(Component)]
-pub struct HallwayScene;
+pub struct StoreScene;
 
-pub fn load_hallway(
+pub fn load_store(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut fog: ResMut<Fog>,
@@ -25,24 +25,24 @@ pub fn load_hallway(
     {
         rt_env_color.0 = Vec3A::ZERO;
     }
-    post_process.enable = true;
+    post_process.enable = false;
 
     *camera.into_inner() =
-        Transform::from_xyz(0.0, 2.0, 5.0).looking_at(Vec3::new(0.0, 0.0, -10.0), Vec3::Y);
+        Transform::from_xyz(0.0, 2.0, 0.0).looking_at(Vec3::new(10.0, 0.0, 0.0), Vec3::Y);
 
     sun.illuminance = 0.0;
 
-    fog.fog_color = vec4(5.0, 5.0, 5.0, 1.0);
+    //fog.fog_color = vec4(0.01, 0.01, 0.01, 1.0);
+    fog.fog_color = Vec4::ZERO;
 
     commands
         .spawn((
             SceneRoot(
-                asset_server
-                    .load(GltfAssetLabel::Scene(0).from_asset("testing/models/Hallway.gltf")),
+                asset_server.load(GltfAssetLabel::Scene(0).from_asset("testing/models/Store.gltf")),
             ),
-            HallwayScene,
+            StoreScene,
             SceneContents,
-            SceneBakeName(String::from("Hallway")),
+            SceneBakeName(String::from("Store")),
         ))
         .observe(cascade::blender_cascades)
         .observe(

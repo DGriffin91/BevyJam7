@@ -53,7 +53,6 @@ pub fn blender_cascades(
                     let mut full_name = name_prefix.clone();
                     full_name.push_str(name);
                     let mut ecmds = commands.entity(entity);
-
                     ecmds
                         .insert(CascadeInput {
                             name: full_name,
