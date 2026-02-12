@@ -278,3 +278,21 @@ pub fn standard_material_render(
         }
     });
 }
+
+pub fn generate_tangets(
+    mut bevy_meshes: ResMut<Assets<Mesh>>,
+    mut mesh_events: MessageReader<AssetEvent<Mesh>>,
+) {
+    for event in mesh_events.read() {
+        let mesh_h = match event {
+            AssetEvent::LoadedWithDependencies { id } | AssetEvent::Added { id } => id,
+            _ => continue,
+        }; // | AssetEvent::Modified { id }
+        if let Some(mesh) = bevy_meshes.get_mut(*mesh_h) {
+            if mesh.attribute(Mesh::ATTRIBUTE_TANGENT).is_none() {
+                mesh.generate_tangents().unwrap();
+                dbg!("NO TANGENTS");
+            }
+        }
+    }
+}

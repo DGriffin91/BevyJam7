@@ -46,7 +46,7 @@ use crate::{
     cascade::{CascadeInput, ConvertCascadePlugin},
     draw_debug::DrawDebugPlugin,
     prepare_lighting::{DynamicLight, PrepareLightingPlugin},
-    std_mat_render::Fog,
+    std_mat_render::{Fog, generate_tangets},
 };
 
 #[derive(FromArgs, Resource, Clone, Default)]
@@ -76,7 +76,7 @@ fn main() {
     let mut app = App::new();
     app.insert_resource(args.clone());
     #[cfg(feature = "asset_baking")]
-    app.insert_resource(RtEnvColor(vec3a(0.32, 0.4, 0.47) * 2.0));
+    app.insert_resource(RtEnvColor(vec3a(0.32, 0.4, 0.47) * 0.0));
     app.insert_resource(ClearColor(Color::srgb(0.32, 0.4, 0.47)))
         .insert_resource(WinitSettings::continuous())
         .insert_resource(GlobalAmbientLight::NONE)
@@ -167,6 +167,7 @@ fn main() {
         .add_systems(Startup, setup)
         .add_systems(Update, generate_mipmaps::<StandardMaterial>)
         .add_systems(Update, window_control)
+        .add_systems(Update, generate_tangets)
         .run();
 }
 
@@ -208,7 +209,7 @@ fn setup(
         Transform::from_xyz(0.0, 0.0, 0.0).looking_at(vec3(4.0, -10.0, 3.9), Vec3::Y),
         DirectionalLight {
             color: Color::srgb(1.0, 0.9, 0.8),
-            illuminance: DIRECT_SUNLIGHT,
+            illuminance: DIRECT_SUNLIGHT * 0.0,
             shadows_enabled: true,
             shadow_depth_bias: 0.0,
             shadow_normal_bias: 0.0,
@@ -232,7 +233,13 @@ fn setup(
         }),
         DepthPrepass,
     ));
-    fog.fog_color = vec4(1.0, 1.0, 1.0, 1.0);
+    fog.fog_color = vec4(3.0, 3.0, 3.0, 1.0);
+
+    commands
+        .spawn(SceneRoot(asset_server.load(
+            GltfAssetLabel::Scene(0).from_asset("testing/models/Hallway.gltf"),
+        )))
+        .observe(cascade::blender_cascades);
 
     if args.temple {
         let start = vec3a(-47.5, 0.1, -25.5);
@@ -255,10 +262,6 @@ fn setup(
             //GltfAssetLabel::Scene(0).from_asset("testing/models/temple/temple.gltf"),
             GltfAssetLabel::Scene(0).from_asset("testing/models/temple_test/temple_test.gltf"),
         )));
-
-        commands.spawn(SceneRoot(
-            asset_server.load(GltfAssetLabel::Scene(0).from_asset("testing/plant.gltf")),
-        ));
 
         commands
             .spawn(SceneRoot(asset_server.load(
