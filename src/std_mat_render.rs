@@ -21,6 +21,7 @@ use uniform_set_derive::UniformSet;
 
 use crate::cascade::{CascadeUniform, select_cascade, transform_aabb};
 use crate::copy_depth_prepass::PrepassTexture;
+use crate::draw_debug::DebugLines;
 use crate::prepare_lighting::GameLightingUniforms;
 
 #[derive(UniformSet, Resource, Clone, Default)]
@@ -52,6 +53,7 @@ pub fn standard_material_render(
     cascades: Query<&CascadeUniform>,
     prepass: Option<ResMut<PrepassTexture>>,
     fog: Option<Res<Fog>>,
+    mut debug: ResMut<DebugLines>,
 ) {
     let view_uniforms = view_uniforms.clone();
     if cascades.iter().len() == 0 {
@@ -128,7 +130,7 @@ pub fn standard_material_render(
             world_from_local,
             obvhs::aabb::Aabb::new(aabb.min(), aabb.max()),
         );
-        let cascade_idx = select_cascade(cascades, draw_aabb);
+        let cascade_idx = select_cascade(cascades, draw_aabb, &mut debug);
 
         draws.push(Draw {
             // TODO don't copy full material

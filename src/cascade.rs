@@ -76,6 +76,8 @@ use obvhs::ray::Ray;
 use serde::Deserialize;
 use uniform_set_derive::UniformSet;
 
+use crate::draw_debug::DebugLines;
+
 pub fn transform_aabb(world_from_local: Mat4, aabb: obvhs::aabb::Aabb) -> obvhs::aabb::Aabb {
     let min = aabb.min;
     let max = aabb.max;
@@ -91,7 +93,11 @@ pub fn transform_aabb(world_from_local: Mat4, aabb: obvhs::aabb::Aabb) -> obvhs:
     aabb
 }
 
-pub fn select_cascade<'a, I>(cascades: I, draw_aabb: obvhs::aabb::Aabb) -> u32
+pub fn select_cascade<'a, I>(
+    cascades: I,
+    draw_aabb: obvhs::aabb::Aabb,
+    #[allow(unused)] mut debug: &mut DebugLines,
+) -> u32
 where
     I: IntoIterator<Item = &'a CascadeUniform>,
 {
@@ -111,20 +117,25 @@ where
         enlarged_cascade_aabb.min -= spacing;
         enlarged_cascade_aabb.max += spacing;
 
-        let outside_weight = 10.0; // TODO do better
-        let cascade_intersection = enlarged_cascade_aabb.intersection(&draw_aabb);
+        let outside_weight = 100.0; // TODO do better
+        let cascade_intersection = cascade_aabb.intersection(&draw_aabb);
+        let enlarged_cascade_intersection = enlarged_cascade_aabb.intersection(&draw_aabb);
         let relative_res = (cascade.cascade_res / cascade.cascade_spacing).max_element();
-        let dist_to_cascade = if cascade_intersection.valid() {
-            draw_size / cascade_intersection.diagonal().length()
+        let dist_to_cascade = if enlarged_cascade_intersection.valid() {
+            draw_size / enlarged_cascade_intersection.diagonal().length()
         } else {
             cascade_aabb.intersect_ray(&Ray::new_inf(
                 draw_center,
                 (cascade_aabb.center() - draw_center).normalize_or_zero(),
             )) * outside_weight
         };
+        //debug.aabb(cascade_aabb, vec3(1.0, 0.0, 1.0));
+        //debug.aabb(draw_aabb, vec3(1.0, 0.0, 0.0));
 
         if dist_to_cascade < draw_dist_to_cascade
-            || (cascade_intersection.valid() && relative_res > best_relative_res)
+            || (dist_to_cascade < draw_dist_to_cascade * 1.1
+                && cascade_intersection.valid()
+                && relative_res > best_relative_res)
         {
             draw_dist_to_cascade = dist_to_cascade;
             best_cascade = i;

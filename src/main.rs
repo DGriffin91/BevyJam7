@@ -233,13 +233,27 @@ fn setup(
         }),
         DepthPrepass,
     ));
-    fog.fog_color = vec4(3.0, 3.0, 3.0, 1.0);
+    fog.fog_color = vec4(5.0, 5.0, 5.0, 1.0);
 
     commands
         .spawn(SceneRoot(asset_server.load(
             GltfAssetLabel::Scene(0).from_asset("testing/models/Hallway.gltf"),
         )))
-        .observe(cascade::blender_cascades);
+        .observe(cascade::blender_cascades)
+        .observe(
+            |scene_ready: On<SceneInstanceReady>,
+             children: Query<&Children>,
+             mut point_lights: Query<&mut PointLight>,
+             mut spot_lights: Query<&mut SpotLight>| {
+                for entity in children.iter_descendants(scene_ready.entity) {
+                    if let Ok(mut point_light) = point_lights.get_mut(entity) {
+                        point_light.shadows_enabled = true;
+                    } else if let Ok(mut spot_light) = spot_lights.get_mut(entity) {
+                        spot_light.shadows_enabled = true;
+                    }
+                }
+            },
+        );
 
     if args.temple {
         let start = vec3a(-47.5, 0.1, -25.5);
