@@ -206,6 +206,7 @@ pub struct PlayerStoreState {
     pub has_box: bool,
     pub timer: f32,
     pub big_box_has_been_spawned: bool,
+    pub boxes_in_aisle: u32,
 }
 
 pub fn pickup_box(
@@ -255,11 +256,12 @@ pub fn pickup_box(
 
 pub fn throw_box(
     mut commands: Commands,
-    camera: Single<&Transform, With<Camera3d>>,
+    camera: Single<&GlobalTransform, With<Camera>>,
     boxes: Query<Entity, With<HeldBox>>,
     mut state: ResMut<PlayerStoreState>,
     asset_server: Res<AssetServer>,
     btn: Res<ButtonInput<MouseButton>>,
+    #[allow(unused)] mut debug: ResMut<DebugLines>,
 ) {
     if btn.just_pressed(MouseButton::Left) && state.has_box {
         state.has_box = false;
@@ -273,7 +275,7 @@ pub fn throw_box(
                     )),
                     StoreScene,
                     SceneContents,
-                    Transform::from_translation(camera.translation),
+                    Transform::from_translation(camera.translation() + *camera.forward()),
                 ))
                 .observe(
                     move |scene_ready: On<SceneInstanceReady>,
@@ -301,22 +303,21 @@ pub fn throw_box(
 
 pub fn count_box(
     mut contexts: EguiContexts,
-    boxes: Query<(&Transform, &GlobalTransform), With<MacBox>>,
+    boxes: Query<&GlobalTransform, With<MacBox>>,
     #[allow(unused)] mut debug: ResMut<DebugLines>,
-    state: Res<PlayerStoreState>,
+    mut state: ResMut<PlayerStoreState>,
 ) {
-    let aisle_aabb = Aabb::new(vec3a(-52.0, 0.0, -2.5), vec3a(52.0, 4.0, 2.5));
-    let mut boxes_in_aisle = if state.has_box { 1 } else { 0 };
-    for (box_trans, box_global_trans) in &boxes {
-        if aisle_aabb.contains_point(box_global_trans.translation().into())
-            || aisle_aabb.contains_point(box_trans.translation.into())
-        {
-            boxes_in_aisle += 1;
+    let aisle_aabb = Aabb::new(vec3a(-52.0, -1.0, -2.5), vec3a(52.0, 4.0, 2.5));
+    state.boxes_in_aisle = if state.has_box { 1 } else { 0 };
+    for box_global_trans in &boxes {
+        if aisle_aabb.contains_point(box_global_trans.translation().into()) {
+            state.boxes_in_aisle += 1;
         }
     }
 
     egui::Window::new("").show(contexts.ctx_mut().unwrap(), |ui| {
-        ui.label(format!("Boxes remaining: {boxes_in_aisle}"));
+        ui.label(format!("Boxes found by query {}", boxes.iter().len()));
+        ui.label(format!("Boxes remaining: {}", state.boxes_in_aisle));
         ui.label(format!("Timer: {}", state.timer));
     });
 }
@@ -364,10 +365,12 @@ fn timed_events(
     asset_server: Res<AssetServer>,
     mut graphs: ResMut<Assets<AnimationGraph>>,
 ) {
-    state.timer += time.delta_secs();
+    if state.boxes_in_aisle < 25 {
+        state.timer += time.delta_secs();
+    }
 
     let shelves_swap_start = 4.0;
-    let spawn_big_box = shelves_swap_start + 10.0;
+    let spawn_big_box = shelves_swap_start + 20.0;
 
     if state.timer > shelves_swap_start {
         if !shelves.is_empty() {
