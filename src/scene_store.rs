@@ -1,10 +1,9 @@
 use std::f32::consts::PI;
 
-use avian3d::prelude::{Collider, Friction, LinearVelocity, Mass, RigidBody};
-use bevy::{prelude::*, scene::SceneInstanceReady};
+use avian3d::prelude::*;
+use bevy::{camera::primitives::Aabb, prelude::*, scene::SceneInstanceReady};
 use bevy_egui::{EguiContexts, EguiPrimaryContextPass, egui};
 use bevy_fps_controller::controller::LogicalPlayer;
-use obvhs::aabb::Aabb;
 
 #[derive(Resource, Default)]
 pub struct StoreSceneGameplayPlugin;
@@ -12,7 +11,6 @@ pub struct StoreSceneGameplayPlugin;
 impl Plugin for StoreSceneGameplayPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PlayerStoreState>()
-            .add_systems(Startup, setup)
             .add_systems(
                 Update,
                 (
@@ -29,6 +27,7 @@ impl Plugin for StoreSceneGameplayPlugin {
 use crate::{
     SceneContents,
     cascade::{self, SceneBakeName},
+    despawn_scene_contents,
     draw_debug::DebugLines,
     physics::{
         convex_hull_collider, convex_hull_dyn_collider_indv, tri_mesh_collider,
@@ -37,34 +36,6 @@ use crate::{
     post_process::PostProcessSettings,
     std_mat_render::Fog,
 };
-
-#[derive(Resource)]
-pub struct CartCollider(pub Mesh);
-
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands
-        .spawn((
-            Transform::from_xyz(0.0, 1000.0, 0.0),
-            SceneRoot(asset_server.load(
-                GltfAssetLabel::Scene(0).from_asset("testing/models/store_cart_collider.gltf"),
-            )),
-        ))
-        .observe(
-            |scene_ready: On<SceneInstanceReady>,
-             mut commands: Commands,
-             children: Query<&Children>,
-             mesh_entities: Query<&Mesh3d>,
-             meshes: Res<Assets<Mesh>>| {
-                for entity in children.iter_descendants(scene_ready.entity) {
-                    if let Ok(entity) = mesh_entities.get(entity) {
-                        if let Some(mesh) = meshes.get(entity) {
-                            commands.insert_resource(CartCollider(mesh.clone()));
-                        }
-                    }
-                }
-            },
-        );
-}
 
 #[derive(Component)]
 pub struct StoreScene;
@@ -77,16 +48,17 @@ pub fn load_store(
     #[cfg(feature = "asset_baking")] mut rt_env_color: ResMut<
         light_volume_baker::rt_scene::RtEnvColor,
     >,
-    camera: Single<&mut Transform, With<Camera3d>>,
+    player: Single<&mut Transform, With<LogicalPlayer>>,
     mut post_process: ResMut<PostProcessSettings>,
+    mut state: ResMut<PlayerStoreState>,
 ) {
     #[cfg(feature = "asset_baking")]
     {
         rt_env_color.0 = Vec3A::ZERO;
     }
     post_process.enable = false;
-
-    *camera.into_inner() =
+    *state = Default::default();
+    *player.into_inner() =
         Transform::from_xyz(0.0, 2.0, 0.0).looking_at(Vec3::new(10.0, 0.0, 0.0), Vec3::Y);
 
     sun.illuminance = 0.0;
@@ -195,8 +167,8 @@ struct AnimationToPlay {
 #[derive(Component, Default)]
 pub struct MacBox;
 
-#[derive(Component, Default)]
-pub struct BigMacBox;
+#[derive(Component)]
+pub struct BigMacBox(Entity);
 
 #[derive(Component)]
 pub struct HeldBox;
@@ -291,7 +263,7 @@ pub fn throw_box(
                                     RigidBody::Dynamic,
                                     LinearVelocity(camera.forward().as_vec3() * 10.0),
                                     MacBox,
-                                    Mass(0.003),
+                                    //Mass(0.001),
                                 ));
                             }
                         }
@@ -307,7 +279,7 @@ pub fn count_box(
     #[allow(unused)] mut debug: ResMut<DebugLines>,
     mut state: ResMut<PlayerStoreState>,
 ) {
-    let aisle_aabb = Aabb::new(vec3a(-52.0, -1.0, -2.5), vec3a(52.0, 4.0, 2.5));
+    let aisle_aabb = obvhs::aabb::Aabb::new(vec3a(-52.0, -1.0, -2.5), vec3a(52.0, 4.0, 2.5));
     state.boxes_in_aisle = if state.has_box { 1 } else { 0 };
     for box_global_trans in &boxes {
         if aisle_aabb.contains_point(box_global_trans.translation().into()) {
@@ -322,9 +294,24 @@ pub fn count_box(
     });
 }
 
-fn move_big_mac_box_forward(mut boxes: Query<&mut Transform, With<BigMacBox>>, time: Res<Time>) {
-    for mut trans in &mut boxes {
-        trans.translation.x += time.delta_secs() * 4.0;
+fn move_big_mac_box_forward(
+    mut commands: Commands,
+    transforms: Query<(&GlobalTransform, &Aabb)>,
+    mut boxes: Query<(&mut Transform, &BigMacBox)>,
+    time: Res<Time>,
+    camera: Single<&GlobalTransform, With<Camera>>,
+) {
+    let camera_pos = camera.translation();
+    for (mut trans, big_box) in &mut boxes {
+        trans.translation.x += time.delta_secs() * 8.0;
+        if let Ok((global_trans, aabb)) = transforms.get(big_box.0) {
+            let box_pos = global_trans.transform_point(aabb.center.into()).x;
+            if box_pos > 65.0 || box_pos > camera_pos.x || camera_pos.y < -10.0 {
+                commands.run_system_cached(despawn_scene_contents);
+                commands.run_system_cached(load_store);
+                break;
+            }
+        }
     }
 }
 
@@ -337,6 +324,7 @@ fn play_animation_when_ready(
     meshes: Res<Assets<Mesh>>,
     mesh_entities: Query<(Entity, &Mesh3d)>,
 ) {
+    let mut mesh_entity = None;
     if let Ok(animation_to_play) = animations_to_play.get(scene_ready.entity) {
         for entity in children.iter_descendants(scene_ready.entity) {
             if let Ok(mut player) = players.get_mut(entity) {
@@ -347,6 +335,7 @@ fn play_animation_when_ready(
             }
             if let Ok((entity, mesh)) = mesh_entities.get(entity) {
                 let mesh = meshes.get(mesh).unwrap();
+                mesh_entity = Some(entity);
                 commands.entity(entity).insert((
                     Collider::convex_hull_from_mesh(mesh).unwrap(),
                     RigidBody::Static,
@@ -354,7 +343,9 @@ fn play_animation_when_ready(
             }
         }
     }
-    commands.entity(scene_ready.entity).insert(BigMacBox);
+    commands
+        .entity(scene_ready.entity)
+        .insert(BigMacBox(mesh_entity.unwrap()));
 }
 
 fn timed_events(
@@ -365,12 +356,12 @@ fn timed_events(
     asset_server: Res<AssetServer>,
     mut graphs: ResMut<Assets<AnimationGraph>>,
 ) {
-    if state.boxes_in_aisle < 25 {
-        state.timer += time.delta_secs();
-    }
+    //if state.boxes_in_aisle < 25 {
+    state.timer += time.delta_secs();
+    //}
 
     let shelves_swap_start = 4.0;
-    let spawn_big_box = shelves_swap_start + 20.0;
+    let spawn_big_box = shelves_swap_start + 0.0;
 
     if state.timer > shelves_swap_start {
         if !shelves.is_empty() {
@@ -413,6 +404,7 @@ fn timed_events(
                 animation_to_play,
                 mesh_scene,
                 Transform::from_scale(Vec3::ONE),
+                SceneContents,
             ))
             .observe(play_animation_when_ready);
     }

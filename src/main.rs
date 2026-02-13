@@ -186,7 +186,6 @@ fn dev_ui(
     mut contexts: EguiContexts,
     #[cfg(feature = "asset_baking")] cascades: Query<Entity, With<CascadeData>>,
     mut camera: Single<&mut FreeCameraState>,
-    scene_contents: Query<Entity, With<SceneContents>>,
 ) {
     if let Ok(ctx) = contexts.ctx_mut() {
         camera.enabled = !(ctx.wants_pointer_input() || ctx.wants_keyboard_input());
@@ -204,30 +203,20 @@ fn dev_ui(
                         .insert((NeedsGpuBake, NeedsCourseBake, NeedsFineBake));
                 }
             }
-            let mut despawn_scene_contents = false;
             if ui.button("Load Store").clicked() {
                 use crate::scene_store::load_store;
-                let id = commands.register_system(load_store);
-                commands.run_system(id);
-                despawn_scene_contents = true;
+                commands.run_system_cached(despawn_scene_contents);
+                commands.run_system_cached(load_store);
             }
             if ui.button("Load hallway").clicked() {
                 use crate::scene_hallway::load_hallway;
-                let id = commands.register_system(load_hallway);
-                commands.run_system(id);
-                despawn_scene_contents = true;
+                commands.run_system_cached(despawn_scene_contents);
+                commands.run_system_cached(load_hallway);
             }
             if ui.button("Load Temple").clicked() {
                 use crate::scene_temple::load_temple;
-                let id = commands.register_system(load_temple);
-                commands.run_system(id);
-                despawn_scene_contents = true;
-            }
-
-            if despawn_scene_contents {
-                for entity in &scene_contents {
-                    commands.entity(entity).despawn();
-                }
+                commands.run_system_cached(despawn_scene_contents);
+                commands.run_system_cached(load_temple);
             }
         }
     });
@@ -302,3 +291,12 @@ fn relative_to_assets(path: &std::path::Path) -> Option<std::path::PathBuf> {
 
 #[derive(Component)]
 pub struct SceneContents;
+
+pub fn despawn_scene_contents(
+    mut commands: Commands,
+    scene_contents: Query<Entity, With<SceneContents>>,
+) {
+    for entity in &scene_contents {
+        commands.entity(entity).despawn();
+    }
+}
