@@ -6,6 +6,7 @@ use bevy::{
     prelude::*,
     window::{CursorGrabMode, CursorOptions},
 };
+use bevy_egui::{EguiContexts, EguiPrimaryContextPass};
 use bevy_fps_controller::controller::*;
 
 #[derive(Resource, Default)]
@@ -17,7 +18,7 @@ impl Plugin for PlayerControllerPlugin {
         app.add_plugins(PhysicsPlugins::default())
             .add_plugins(FpsControllerPlugin)
             .add_systems(Startup, setup_player_controller)
-            .add_systems(Update, manage_cursor);
+            .add_systems(EguiPrimaryContextPass, manage_cursor);
     }
 }
 
@@ -85,20 +86,28 @@ fn manage_cursor(
     btn: Res<ButtonInput<MouseButton>>,
     key: Res<ButtonInput<KeyCode>>,
     mut cursor: Single<&mut CursorOptions>,
+    mut contexts: EguiContexts,
     mut controller_query: Query<&mut FpsController>,
 ) {
-    if btn.just_pressed(MouseButton::Left) {
-        cursor.grab_mode = CursorGrabMode::Locked;
-        cursor.visible = false;
-        for mut controller in &mut controller_query {
-            controller.enable_input = true;
-        }
+    let mut wants_input = false;
+    if let Ok(ctx) = contexts.ctx_mut() {
+        wants_input = ctx.wants_pointer_input() || ctx.wants_keyboard_input();
     }
-    if key.just_pressed(KeyCode::Escape) {
-        cursor.grab_mode = CursorGrabMode::None;
-        cursor.visible = true;
-        for mut controller in &mut controller_query {
-            controller.enable_input = false;
+    if !wants_input {
+        if btn.just_pressed(MouseButton::Left) {
+            cursor.grab_mode = CursorGrabMode::Locked;
+            cursor.visible = false;
+            for mut controller in &mut controller_query {
+                controller.enable_input = true;
+            }
+        }
+        if key.just_pressed(KeyCode::Escape) {
+            cursor.grab_mode = CursorGrabMode::None;
+            cursor.visible = true;
+            for mut controller in &mut controller_query {
+                controller.enable_input = false;
+                dbg!("!");
+            }
         }
     }
 }

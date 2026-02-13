@@ -24,6 +24,8 @@ use bevy::{
 };
 #[cfg(feature = "dev")]
 use bevy_egui::{EguiContexts, EguiPrimaryContextPass, egui};
+#[cfg(feature = "dev")]
+use bevy_fps_controller::controller::FpsController;
 use bevy_mod_mipmap_generator::{MipmapGeneratorPlugin, generate_mipmaps};
 use bgl2::{
     bevy_standard_material::{
@@ -70,6 +72,14 @@ pub struct Args {
     temple: bool,
 }
 
+#[derive(States, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum SceneState {
+    Init,
+    Hallway,
+    Store,
+    Temple,
+}
+
 fn main() {
     #[cfg(target_arch = "wasm32")]
     #[allow(unused)]
@@ -114,7 +124,8 @@ fn main() {
             LogDiagnosticsPlugin::default(),
             FrameTimeDiagnosticsPlugin::default(),
             MipmapGeneratorPlugin,
-        ));
+        ))
+        .insert_state(SceneState::Init);
 
     #[cfg(feature = "asset_baking")]
     {
@@ -185,10 +196,13 @@ fn dev_ui(
     mut commands: Commands,
     mut contexts: EguiContexts,
     #[cfg(feature = "asset_baking")] cascades: Query<Entity, With<CascadeData>>,
-    mut camera: Single<&mut FreeCameraState>,
+    mut camera: Option<Single<&mut FreeCameraState>>,
 ) {
     if let Ok(ctx) = contexts.ctx_mut() {
-        camera.enabled = !(ctx.wants_pointer_input() || ctx.wants_keyboard_input());
+        let wants_input = ctx.wants_pointer_input() || ctx.wants_keyboard_input();
+        if let Some(camera) = &mut camera {
+            camera.enabled = !wants_input;
+        }
     }
 
     egui::Window::new("Dev Utils").show(contexts.ctx_mut().unwrap(), |ui| {

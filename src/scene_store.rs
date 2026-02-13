@@ -18,14 +18,18 @@ impl Plugin for StoreSceneGameplayPlugin {
                     throw_box,
                     move_big_mac_box_forward,
                     timed_events,
-                ),
+                )
+                    .run_if(in_state(SceneState::Store)),
             )
-            .add_systems(EguiPrimaryContextPass, count_box);
+            .add_systems(
+                EguiPrimaryContextPass,
+                count_box.run_if(in_state(SceneState::Store)),
+            );
     }
 }
 
 use crate::{
-    SceneContents,
+    SceneContents, SceneState,
     cascade::{self, SceneBakeName},
     despawn_scene_contents,
     draw_debug::DebugLines,
@@ -37,9 +41,6 @@ use crate::{
     std_mat_render::Fog,
 };
 
-#[derive(Component)]
-pub struct StoreScene;
-
 pub fn load_store(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -48,18 +49,23 @@ pub fn load_store(
     #[cfg(feature = "asset_baking")] mut rt_env_color: ResMut<
         light_volume_baker::rt_scene::RtEnvColor,
     >,
-    player: Single<&mut Transform, With<LogicalPlayer>>,
+    player: Single<(&mut Transform, &mut LinearVelocity), With<LogicalPlayer>>,
     mut post_process: ResMut<PostProcessSettings>,
     mut state: ResMut<PlayerStoreState>,
+    mut next_state: ResMut<NextState<SceneState>>,
 ) {
     #[cfg(feature = "asset_baking")]
     {
         rt_env_color.0 = Vec3A::ZERO;
     }
+    next_state.set(SceneState::Store);
     post_process.enable = false;
     *state = Default::default();
-    *player.into_inner() =
-        Transform::from_xyz(0.0, 2.0, 0.0).looking_at(Vec3::new(10.0, 0.0, 0.0), Vec3::Y);
+
+    let (mut player_trans, mut player_vel) = player.into_inner();
+    *player_trans =
+        Transform::from_xyz(0.0, 3.0, 0.0).looking_at(Vec3::new(10.0, 0.0, 0.0), Vec3::Y);
+    *player_vel = LinearVelocity::ZERO;
 
     sun.illuminance = 0.0;
 
@@ -172,6 +178,9 @@ pub struct BigMacBox(Entity);
 
 #[derive(Component)]
 pub struct HeldBox;
+
+#[derive(Component)]
+pub struct StoreScene;
 
 #[derive(Resource, Default)]
 pub struct PlayerStoreState {
@@ -345,7 +354,7 @@ fn play_animation_when_ready(
     }
     commands
         .entity(scene_ready.entity)
-        .insert(BigMacBox(mesh_entity.unwrap()));
+        .insert((SceneContents, BigMacBox(mesh_entity.unwrap())));
 }
 
 fn timed_events(
@@ -356,12 +365,12 @@ fn timed_events(
     asset_server: Res<AssetServer>,
     mut graphs: ResMut<Assets<AnimationGraph>>,
 ) {
-    //if state.boxes_in_aisle < 25 {
-    state.timer += time.delta_secs();
-    //}
+    if state.boxes_in_aisle < 25 {
+        state.timer += time.delta_secs();
+    }
 
     let shelves_swap_start = 4.0;
-    let spawn_big_box = shelves_swap_start + 0.0;
+    let spawn_big_box = shelves_swap_start + 20.0;
 
     if state.timer > shelves_swap_start {
         if !shelves.is_empty() {

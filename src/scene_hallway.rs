@@ -1,7 +1,7 @@
 use bevy::{prelude::*, scene::SceneInstanceReady};
 
 use crate::{
-    SceneContents,
+    SceneContents, SceneState,
     cascade::{self, SceneBakeName},
     post_process::PostProcessSettings,
     std_mat_render::Fog,
@@ -20,13 +20,14 @@ pub fn load_hallway(
     >,
     camera: Single<&mut Transform, With<Camera3d>>,
     mut post_process: ResMut<PostProcessSettings>,
+    mut next_state: ResMut<NextState<SceneState>>,
 ) {
     #[cfg(feature = "asset_baking")]
     {
         rt_env_color.0 = Vec3A::ZERO;
     }
+    next_state.set(SceneState::Hallway);
     post_process.enable = true;
-
     *camera.into_inner() =
         Transform::from_xyz(0.0, 2.0, 5.0).looking_at(Vec3::new(0.0, 0.0, -10.0), Vec3::Y);
 

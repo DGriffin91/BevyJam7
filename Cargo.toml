@@ -72,7 +72,7 @@ opt-level = 3
 opt-level = 3
 
 [features]
-#default = ["dev"]
+default = ["dev"]
 dev = ["bevy/file_watcher", "asset_baking", "dep:pathdiff"]
 asset_baking = ["dep:light_volume_baker"]
 
