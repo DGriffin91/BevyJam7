@@ -1,4 +1,6 @@
-use bevy::{math::VectorSpace, prelude::*, scene::SceneInstanceReady};
+use std::f32::consts::PI;
+
+use bevy::{prelude::*, scene::SceneInstanceReady};
 
 use crate::{
     SceneContents,
@@ -34,6 +36,25 @@ pub fn load_store(
 
     //fog.fog_color = vec4(0.01, 0.01, 0.01, 1.0);
     fog.fog_color = Vec4::ZERO;
+
+    let shelf =
+        asset_server.load(GltfAssetLabel::Scene(0).from_asset("testing/models/store_shelf.gltf"));
+
+    for i in 0..39 {
+        commands.spawn((
+            Transform::from_xyz(i as f32 * -2.47182, 0.0, 0.0),
+            SceneRoot(shelf.clone()),
+            StoreScene,
+            SceneContents,
+        ));
+        commands.spawn((
+            Transform::from_xyz(i as f32 * -2.47182 + 42.9162 * 2.0, 0.0, 0.0)
+                .with_rotation(Quat::from_rotation_y(PI)),
+            SceneRoot(shelf.clone()),
+            StoreScene,
+            SceneContents,
+        ));
+    }
 
     commands
         .spawn((
