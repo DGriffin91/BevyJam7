@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use avian3d::prelude::{Collider, LinearVelocity, RigidBody};
+use avian3d::prelude::{Collider, Friction, LinearVelocity, Mass, RigidBody};
 use bevy::{prelude::*, scene::SceneInstanceReady};
 use bevy_egui::{EguiContexts, EguiPrimaryContextPass, egui};
 use bevy_fps_controller::controller::LogicalPlayer;
@@ -12,7 +12,16 @@ pub struct StoreSceneGameplayPlugin;
 impl Plugin for StoreSceneGameplayPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PlayerStoreState>()
-            .add_systems(Update, (pickup_box, throw_box, move_big_mac_box_forward))
+            .add_systems(Startup, setup)
+            .add_systems(
+                Update,
+                (
+                    pickup_box,
+                    throw_box,
+                    move_big_mac_box_forward,
+                    timed_events,
+                ),
+            )
             .add_systems(EguiPrimaryContextPass, count_box);
     }
 }
@@ -22,12 +31,40 @@ use crate::{
     cascade::{self, SceneBakeName},
     draw_debug::DebugLines,
     physics::{
-        convex_hull_collider, convex_hull_dyn_collider_indv, convex_hull_dyn_collider_scene,
-        tri_mesh_collider, trimesh_dyn_collider_scene,
+        convex_hull_collider, convex_hull_dyn_collider_indv, tri_mesh_collider,
+        trimesh_dyn_collider_scene,
     },
     post_process::PostProcessSettings,
     std_mat_render::Fog,
 };
+
+#[derive(Resource)]
+pub struct CartCollider(pub Mesh);
+
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands
+        .spawn((
+            Transform::from_xyz(0.0, 1000.0, 0.0),
+            SceneRoot(asset_server.load(
+                GltfAssetLabel::Scene(0).from_asset("testing/models/store_cart_collider.gltf"),
+            )),
+        ))
+        .observe(
+            |scene_ready: On<SceneInstanceReady>,
+             mut commands: Commands,
+             children: Query<&Children>,
+             mesh_entities: Query<&Mesh3d>,
+             meshes: Res<Assets<Mesh>>| {
+                for entity in children.iter_descendants(scene_ready.entity) {
+                    if let Ok(entity) = mesh_entities.get(entity) {
+                        if let Some(mesh) = meshes.get(entity) {
+                            commands.insert_resource(CartCollider(mesh.clone()));
+                        }
+                    }
+                }
+            },
+        );
+}
 
 #[derive(Component)]
 pub struct StoreScene;
@@ -42,7 +79,6 @@ pub fn load_store(
     >,
     camera: Single<&mut Transform, With<Camera3d>>,
     mut post_process: ResMut<PostProcessSettings>,
-    mut graphs: ResMut<Assets<AnimationGraph>>,
 ) {
     #[cfg(feature = "asset_baking")]
     {
@@ -61,13 +97,15 @@ pub fn load_store(
     let shelf =
         asset_server.load(GltfAssetLabel::Scene(0).from_asset("testing/models/store_shelf.gltf"));
 
-    for i in 0..39 {
+    let max = 39;
+    for i in 0..max {
         commands
             .spawn((
                 Transform::from_xyz(i as f32 * -2.47182, 0.0, 0.0),
                 SceneRoot(shelf.clone()),
                 StoreScene,
                 SceneContents,
+                StoreShelf(max - i),
             ))
             .observe(convex_hull_collider);
         commands
@@ -77,21 +115,26 @@ pub fn load_store(
                 SceneRoot(shelf.clone()),
                 StoreScene,
                 SceneContents,
+                StoreShelf(max - i),
             ))
             .observe(convex_hull_collider);
     }
 
-    commands
-        .spawn((
-            Transform::from_xyz(-5.0, 0.5, 0.0),
-            SceneRoot(
-                asset_server
-                    .load(GltfAssetLabel::Scene(0).from_asset("testing/models/store_cart.gltf")),
-            ),
-            StoreScene,
-            SceneContents,
-        ))
-        .observe(trimesh_dyn_collider_scene);
+    for i in 1..4 {
+        commands
+            .spawn((
+                Transform::from_xyz(i as f32 * -8.0, 1.0, 0.0)
+                    .with_rotation(Quat::from_rotation_y(i as f32)),
+                SceneRoot(
+                    asset_server.load(
+                        GltfAssetLabel::Scene(0).from_asset("testing/models/store_cart.gltf"),
+                    ),
+                ),
+                StoreScene,
+                SceneContents,
+            ))
+            .observe(trimesh_dyn_collider_scene);
+    }
 
     commands
         .spawn((
@@ -141,27 +184,6 @@ pub fn load_store(
             },
         )
         .observe(tri_mesh_collider);
-
-    let (graph, index) = AnimationGraph::from_clip(
-        asset_server
-            .load(GltfAssetLabel::Animation(0).from_asset("testing/models/store_mac_anim.gltf")),
-    );
-    let graph_handle = graphs.add(graph);
-    let animation_to_play = AnimationToPlay {
-        graph_handle,
-        index,
-    };
-    let mesh_scene = SceneRoot(
-        asset_server
-            .load(GltfAssetLabel::Scene(0).from_asset("testing/models/store_mac_anim.gltf")),
-    );
-    commands
-        .spawn((
-            animation_to_play,
-            mesh_scene,
-            Transform::from_scale(Vec3::ONE),
-        ))
-        .observe(play_animation_when_ready);
 }
 
 #[derive(Component)]
@@ -181,7 +203,9 @@ pub struct HeldBox;
 
 #[derive(Resource, Default)]
 pub struct PlayerStoreState {
-    has_box: bool,
+    pub has_box: bool,
+    pub timer: f32,
+    pub big_box_has_been_spawned: bool,
 }
 
 pub fn pickup_box(
@@ -265,6 +289,7 @@ pub fn throw_box(
                                     RigidBody::Dynamic,
                                     LinearVelocity(camera.forward().as_vec3() * 10.0),
                                     MacBox,
+                                    Mass(0.003),
                                 ));
                             }
                         }
@@ -292,6 +317,7 @@ pub fn count_box(
 
     egui::Window::new("").show(contexts.ctx_mut().unwrap(), |ui| {
         ui.label(format!("Boxes remaining: {boxes_in_aisle}"));
+        ui.label(format!("Timer: {}", state.timer));
     });
 }
 
@@ -321,7 +347,7 @@ fn play_animation_when_ready(
             if let Ok((entity, mesh)) = mesh_entities.get(entity) {
                 let mesh = meshes.get(mesh).unwrap();
                 commands.entity(entity).insert((
-                    Collider::trimesh_from_mesh(mesh).unwrap(),
+                    Collider::convex_hull_from_mesh(mesh).unwrap(),
                     RigidBody::Static,
                 ));
             }
@@ -329,3 +355,68 @@ fn play_animation_when_ready(
     }
     commands.entity(scene_ready.entity).insert(BigMacBox);
 }
+
+fn timed_events(
+    mut state: ResMut<PlayerStoreState>,
+    mut commands: Commands,
+    time: Res<Time>,
+    shelves: Query<(Entity, &Transform, &StoreShelf)>,
+    asset_server: Res<AssetServer>,
+    mut graphs: ResMut<Assets<AnimationGraph>>,
+) {
+    state.timer += time.delta_secs();
+
+    let shelves_swap_start = 4.0;
+    let spawn_big_box = shelves_swap_start + 10.0;
+
+    if state.timer > shelves_swap_start {
+        if !shelves.is_empty() {
+            let shelf = asset_server
+                .load(GltfAssetLabel::Scene(0).from_asset("testing/models/store_mac_shelf.gltf"));
+            for (shelf_entity, shelf_trans, shelf_index) in &shelves {
+                if (state.timer - shelves_swap_start) * 3.0 > shelf_index.0 as f32 {
+                    commands.entity(shelf_entity).despawn();
+                    commands
+                        .spawn((
+                            shelf_trans.clone(),
+                            SceneRoot(shelf.clone()),
+                            StoreScene,
+                            SceneContents,
+                            StoreMacShelf,
+                        ))
+                        .observe(convex_hull_collider);
+                }
+            }
+        }
+    }
+
+    if !state.big_box_has_been_spawned && state.timer > spawn_big_box {
+        state.big_box_has_been_spawned = true;
+        let (graph, index) =
+            AnimationGraph::from_clip(asset_server.load(
+                GltfAssetLabel::Animation(0).from_asset("testing/models/store_mac_anim.gltf"),
+            ));
+        let graph_handle = graphs.add(graph);
+        let animation_to_play = AnimationToPlay {
+            graph_handle,
+            index,
+        };
+        let mesh_scene = SceneRoot(
+            asset_server
+                .load(GltfAssetLabel::Scene(0).from_asset("testing/models/store_mac_anim.gltf")),
+        );
+        commands
+            .spawn((
+                animation_to_play,
+                mesh_scene,
+                Transform::from_scale(Vec3::ONE),
+            ))
+            .observe(play_animation_when_ready);
+    }
+}
+
+#[derive(Component)]
+pub struct StoreShelf(i32);
+
+#[derive(Component)]
+pub struct StoreMacShelf;
