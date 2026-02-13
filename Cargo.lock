@@ -11,6 +11,7 @@ dependencies = [
  "bevy",
  "bevy_egui",
  "bevy_fps_controller",
+ "bevy_mod_mesh_tools",
  "bevy_mod_mipmap_generator",
  "bgl2",
  "bytemuck",
@@ -1321,6 +1322,15 @@ name = "bevy_mikktspace"
 version = "0.17.0-dev"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ef8e4b7e61dfe7719bb03c884dc270cd46a82efb40f93e9933b990c5c190c59"
+
+[[package]]
+name = "bevy_mod_mesh_tools"
+version = "0.1.0"
+source = "git+https://github.com/DGriffin91/bevy_mod_mesh_tools#3d379fd8aa6b7dbbe9101217e78a3cbf3e8acd9b"
+dependencies = [
+ "bevy",
+ "thiserror 1.0.69",
+]
 
 [[package]]
 name = "bevy_mod_mipmap_generator"

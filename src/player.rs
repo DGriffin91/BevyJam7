@@ -22,7 +22,6 @@ impl Plugin for PlayerControllerPlugin {
 }
 
 fn setup_player_controller(mut commands: Commands) {
-    dbg!("!");
     let logical_entity = commands
         .spawn((
             Collider::cylinder(0.5, 2.0),

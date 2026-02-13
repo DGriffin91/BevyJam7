@@ -12,7 +12,7 @@ pub struct StoreSceneGameplayPlugin;
 impl Plugin for StoreSceneGameplayPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PlayerStoreState>()
-            .add_systems(Update, (pickup_box, throw_box))
+            .add_systems(Update, (pickup_box, throw_box, move_big_mac_box_forward))
             .add_systems(EguiPrimaryContextPass, count_box);
     }
 }
@@ -23,7 +23,7 @@ use crate::{
     draw_debug::DebugLines,
     physics::{
         convex_hull_collider, convex_hull_dyn_collider_indv, convex_hull_dyn_collider_scene,
-        tri_mesh_collider,
+        tri_mesh_collider, trimesh_dyn_collider_scene,
     },
     post_process::PostProcessSettings,
     std_mat_render::Fog,
@@ -42,6 +42,7 @@ pub fn load_store(
     >,
     camera: Single<&mut Transform, With<Camera3d>>,
     mut post_process: ResMut<PostProcessSettings>,
+    mut graphs: ResMut<Assets<AnimationGraph>>,
 ) {
     #[cfg(feature = "asset_baking")]
     {
@@ -82,6 +83,7 @@ pub fn load_store(
 
     commands
         .spawn((
+            Transform::from_xyz(-5.0, 0.5, 0.0),
             SceneRoot(
                 asset_server
                     .load(GltfAssetLabel::Scene(0).from_asset("testing/models/store_cart.gltf")),
@@ -89,7 +91,7 @@ pub fn load_store(
             StoreScene,
             SceneContents,
         ))
-        .observe(convex_hull_dyn_collider_scene);
+        .observe(trimesh_dyn_collider_scene);
 
     commands
         .spawn((
@@ -139,10 +141,40 @@ pub fn load_store(
             },
         )
         .observe(tri_mesh_collider);
+
+    let (graph, index) = AnimationGraph::from_clip(
+        asset_server
+            .load(GltfAssetLabel::Animation(0).from_asset("testing/models/store_mac_anim.gltf")),
+    );
+    let graph_handle = graphs.add(graph);
+    let animation_to_play = AnimationToPlay {
+        graph_handle,
+        index,
+    };
+    let mesh_scene = SceneRoot(
+        asset_server
+            .load(GltfAssetLabel::Scene(0).from_asset("testing/models/store_mac_anim.gltf")),
+    );
+    commands
+        .spawn((
+            animation_to_play,
+            mesh_scene,
+            Transform::from_scale(Vec3::ONE),
+        ))
+        .observe(play_animation_when_ready);
+}
+
+#[derive(Component)]
+struct AnimationToPlay {
+    graph_handle: Handle<AnimationGraph>,
+    index: AnimationNodeIndex,
 }
 
 #[derive(Component, Default)]
 pub struct MacBox;
+
+#[derive(Component, Default)]
+pub struct BigMacBox;
 
 #[derive(Component)]
 pub struct HeldBox;
@@ -261,4 +293,39 @@ pub fn count_box(
     egui::Window::new("").show(contexts.ctx_mut().unwrap(), |ui| {
         ui.label(format!("Boxes remaining: {boxes_in_aisle}"));
     });
+}
+
+fn move_big_mac_box_forward(mut boxes: Query<&mut Transform, With<BigMacBox>>, time: Res<Time>) {
+    for mut trans in &mut boxes {
+        trans.translation.x += time.delta_secs() * 4.0;
+    }
+}
+
+fn play_animation_when_ready(
+    scene_ready: On<SceneInstanceReady>,
+    mut commands: Commands,
+    children: Query<&Children>,
+    animations_to_play: Query<&AnimationToPlay>,
+    mut players: Query<&mut AnimationPlayer>,
+    meshes: Res<Assets<Mesh>>,
+    mesh_entities: Query<(Entity, &Mesh3d)>,
+) {
+    if let Ok(animation_to_play) = animations_to_play.get(scene_ready.entity) {
+        for entity in children.iter_descendants(scene_ready.entity) {
+            if let Ok(mut player) = players.get_mut(entity) {
+                player.play(animation_to_play.index).repeat();
+                commands
+                    .entity(entity)
+                    .insert(AnimationGraphHandle(animation_to_play.graph_handle.clone()));
+            }
+            if let Ok((entity, mesh)) = mesh_entities.get(entity) {
+                let mesh = meshes.get(mesh).unwrap();
+                commands.entity(entity).insert((
+                    Collider::trimesh_from_mesh(mesh).unwrap(),
+                    RigidBody::Static,
+                ));
+            }
+        }
+    }
+    commands.entity(scene_ready.entity).insert(BigMacBox);
 }

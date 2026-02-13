@@ -40,6 +40,7 @@ bevy_mod_mipmap_generator = { git = "https://github.com/DGriffin91/bevy_mod_mipm
 argh = "0.1"
 itertools = "0.14"
 wgpu-types = "27" #Needed for bevy interop types since bevy doesn't re-export everything
+bevy_mod_mesh_tools = { git = "https://github.com/DGriffin91/bevy_mod_mesh_tools" }
 
 uniform_set_derive = { path = "../../../../opengl/bevy_opengl/uniform_set_derive" }
 bgl2 = { path = "../../../../opengl/bevy_opengl" }
