@@ -48,7 +48,7 @@ use light_volume_baker::{
 use crate::{
     cascade::ConvertCascadePlugin,
     draw_debug::DrawDebugPlugin,
-    post_process::PostProcessPlugin,
+    post_process::{PostProcessPlugin, PostProcessSettings},
     prepare_lighting::PrepareLightingPlugin,
     std_mat_render::{Fog, generate_tangets},
 };
@@ -81,7 +81,8 @@ fn main() {
     app.insert_resource(args.clone());
     #[cfg(feature = "asset_baking")]
     app.insert_resource(RtEnvColor(vec3a(0.32, 0.4, 0.47) * 0.0));
-    app.insert_resource(ClearColor(Color::srgb(0.32, 0.4, 0.47)))
+    app.init_resource::<PostProcessSettings>()
+        .insert_resource(ClearColor(Color::srgb(0.32, 0.4, 0.47)))
         .insert_resource(WinitSettings::continuous())
         .insert_resource(GlobalAmbientLight::NONE)
         .add_plugins((
@@ -112,7 +113,6 @@ fn main() {
             LogDiagnosticsPlugin::default(),
             FrameTimeDiagnosticsPlugin::default(),
             MipmapGeneratorPlugin,
-            PostProcessPlugin,
         ));
 
     #[cfg(feature = "asset_baking")]
@@ -147,6 +147,7 @@ fn main() {
                 OpenGLRenderPlugins,
                 PrepareLightingPlugin,
                 DrawDebugPlugin,
+                PostProcessPlugin,
             ))
             .add_systems(
                 PostUpdate,
@@ -171,7 +172,7 @@ fn main() {
         .add_plugins((
             ConvertCascadePlugin, //PostProcessPlugin
         ))
-        .add_systems(Startup, setup)
+        .add_systems(Startup, (setup, scene_store::load_store).chain())
         .add_systems(Update, generate_mipmaps::<StandardMaterial>)
         .add_systems(Update, window_control)
         .add_systems(Update, generate_tangets)

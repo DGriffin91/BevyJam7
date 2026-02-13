@@ -15,7 +15,7 @@ pub struct PostProcessPlugin;
 
 impl Plugin for PostProcessPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<PostProcessSettings>().add_systems(
+        app.add_systems(
             PostUpdate,
             (copy_render_target, render_post_process)
                 .chain()
