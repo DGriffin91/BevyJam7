@@ -5,6 +5,10 @@ use bevy::{prelude::*, scene::SceneInstanceReady};
 use crate::{
     SceneContents,
     cascade::{self, SceneBakeName},
+    physics::{
+        convex_hull_collider, convex_hull_dyn_collider_indv, convex_hull_dyn_collider_scene,
+        tri_mesh_collider,
+    },
     post_process::PostProcessSettings,
     std_mat_render::Fog,
 };
@@ -41,20 +45,45 @@ pub fn load_store(
         asset_server.load(GltfAssetLabel::Scene(0).from_asset("testing/models/store_shelf.gltf"));
 
     for i in 0..39 {
-        commands.spawn((
-            Transform::from_xyz(i as f32 * -2.47182, 0.0, 0.0),
-            SceneRoot(shelf.clone()),
-            StoreScene,
-            SceneContents,
-        ));
-        commands.spawn((
-            Transform::from_xyz(i as f32 * -2.47182 + 42.9162 * 2.0, 0.0, 0.0)
-                .with_rotation(Quat::from_rotation_y(PI)),
-            SceneRoot(shelf.clone()),
-            StoreScene,
-            SceneContents,
-        ));
+        commands
+            .spawn((
+                Transform::from_xyz(i as f32 * -2.47182, 0.0, 0.0),
+                SceneRoot(shelf.clone()),
+                StoreScene,
+                SceneContents,
+            ))
+            .observe(convex_hull_collider);
+        commands
+            .spawn((
+                Transform::from_xyz(i as f32 * -2.47182 + 42.9162 * 2.0, 0.0, 0.0)
+                    .with_rotation(Quat::from_rotation_y(PI)),
+                SceneRoot(shelf.clone()),
+                StoreScene,
+                SceneContents,
+            ))
+            .observe(convex_hull_collider);
     }
+
+    commands
+        .spawn((
+            SceneRoot(
+                asset_server
+                    .load(GltfAssetLabel::Scene(0).from_asset("testing/models/store_cart.gltf")),
+            ),
+            StoreScene,
+            SceneContents,
+        ))
+        .observe(convex_hull_dyn_collider_scene);
+
+    commands
+        .spawn((
+            SceneRoot(asset_server.load(
+                GltfAssetLabel::Scene(0).from_asset("testing/models/store_boxes_on_floor.gltf"),
+            )),
+            StoreScene,
+            SceneContents,
+        ))
+        .observe(convex_hull_dyn_collider_indv);
 
     commands
         .spawn((
@@ -79,5 +108,6 @@ pub fn load_store(
                     }
                 }
             },
-        );
+        )
+        .observe(tri_mesh_collider);
 }

@@ -1,6 +1,8 @@
 pub mod cascade;
 pub mod copy_depth_prepass;
 pub mod draw_debug;
+pub mod physics;
+pub mod player;
 pub mod post_process;
 pub mod prepare_lighting;
 pub mod scene_hallway;
@@ -8,14 +10,11 @@ pub mod scene_store;
 pub mod scene_temple;
 pub mod std_mat_render;
 
-use std::f32::consts::PI;
-
 use argh::FromArgs;
 #[cfg(feature = "dev")]
 use bevy::camera_controller::free_camera::FreeCameraState;
 use bevy::{
-    camera_controller::free_camera::{FreeCamera, FreeCameraPlugin},
-    core_pipeline::prepass::DepthPrepass,
+    camera_controller::free_camera::FreeCameraPlugin,
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     light::light_consts::lux::DIRECT_SUNLIGHT,
     prelude::*,
@@ -48,6 +47,7 @@ use light_volume_baker::{
 use crate::{
     cascade::ConvertCascadePlugin,
     draw_debug::DrawDebugPlugin,
+    player::PlayerControllerPlugin,
     post_process::{PostProcessPlugin, PostProcessSettings},
     prepare_lighting::PrepareLightingPlugin,
     std_mat_render::{Fog, generate_tangets},
@@ -148,6 +148,7 @@ fn main() {
                 PrepareLightingPlugin,
                 DrawDebugPlugin,
                 PostProcessPlugin,
+                PlayerControllerPlugin,
             ))
             .add_systems(
                 PostUpdate,
@@ -169,14 +170,12 @@ fn main() {
     }
 
     app.init_resource::<Fog>()
-        .add_plugins((
-            ConvertCascadePlugin, //PostProcessPlugin
-        ))
+        .add_plugins(ConvertCascadePlugin)
         .add_systems(Startup, (setup, scene_store::load_store).chain())
         .add_systems(Update, generate_mipmaps::<StandardMaterial>)
         .add_systems(Update, window_control)
-        .add_systems(Update, generate_tangets)
-        .run();
+        .add_systems(Update, generate_tangets);
+    app.run();
 }
 
 #[cfg(feature = "dev")]
@@ -245,22 +244,6 @@ fn setup(mut commands: Commands, args: Res<Args>) {
             ..default()
         },
         ShadowBounds::cube(if args.temple { 250.0 } else { 100.0 }),
-    ));
-
-    // Camera
-    commands.spawn((
-        Camera3d::default(),
-        Transform::from_xyz(-45.0, 4.0, 0.0).looking_at(Vec3::new(0.0, 18.0, 0.0), Vec3::Y),
-        FreeCamera {
-            walk_speed: 5.0,
-            run_speed: 30.0,
-            ..default()
-        },
-        Projection::Perspective(PerspectiveProjection {
-            fov: PI / 3.0,
-            ..default()
-        }),
-        DepthPrepass,
     ));
 }
 
