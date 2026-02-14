@@ -17,7 +17,6 @@ use bevy::camera_controller::free_camera::FreeCameraState;
 use bevy::{
     camera_controller::free_camera::FreeCameraPlugin,
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
-    light::light_consts::lux::DIRECT_SUNLIGHT,
     prelude::*,
     render::{RenderPlugin, settings::WgpuSettings},
     window::WindowMode,
@@ -246,19 +245,19 @@ fn dev_ui(
     });
 }
 
-fn setup(mut commands: Commands, args: Res<Args>) {
+fn setup(mut commands: Commands) {
     // Sun
     commands.spawn((
         Transform::from_xyz(0.0, 0.0, 0.0).looking_at(vec3(4.0, -10.0, 3.9), Vec3::Y),
         DirectionalLight {
             color: Color::srgb(1.0, 0.9, 0.8),
-            illuminance: DIRECT_SUNLIGHT,
-            shadows_enabled: true,
+            illuminance: 0.0,
+            shadows_enabled: false,
             shadow_depth_bias: 0.0,
             shadow_normal_bias: 0.0,
             ..default()
         },
-        ShadowBounds::cube(if args.temple { 250.0 } else { 100.0 }),
+        ShadowBounds::cube(100.0),
     ));
 }
 

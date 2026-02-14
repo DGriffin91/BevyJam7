@@ -32,6 +32,7 @@ pub fn load_temple(
 
     let (mut sun, mut shadow_bounds) = sun.into_inner();
     sun.illuminance = DIRECT_SUNLIGHT;
+    sun.shadows_enabled = true;
     *shadow_bounds = ShadowBounds::cube(250.0);
 
     fog.fog_color = vec4(1.0, 1.0, 1.0, 1.0);

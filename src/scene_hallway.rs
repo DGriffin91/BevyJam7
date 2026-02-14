@@ -61,6 +61,7 @@ pub fn load_hallway(
     *player_vel = LinearVelocity::ZERO;
 
     sun.illuminance = 0.0;
+    sun.shadows_enabled = false;
 
     fog.fog_color = vec4(5.0, 5.0, 5.0, 1.0);
     fog.caustics = vec4(0.5, 0.0, 0.0, 1.0);

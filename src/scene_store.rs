@@ -68,6 +68,7 @@ pub fn load_store(
     *player_vel = LinearVelocity::ZERO;
 
     sun.illuminance = 0.0;
+    sun.shadows_enabled = false;
 
     //fog.fog_color = vec4(0.01, 0.01, 0.01, 1.0);
     fog.fog_color = Vec4::ZERO;
