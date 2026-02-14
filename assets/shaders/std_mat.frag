@@ -328,7 +328,7 @@ vec3 sample_fog(float blend, float seed, vec3 atm_color, vec3 sample_normal, vec
     //        ub_directional_light_dir, ub_directional_light_color);
 
     #ifdef THERES_CAUSTICS
-    vec3 pos = vec3(sample_pos.x, -0.0002 * ub_frame, sample_pos.z);
+    vec3 pos = vec3(sample_pos.x, -0.1 * ub_time, sample_pos.z);
     vec3 o = vec3(1.0, 0.0, 1.0) * 0.02;
     float w = water_caustics(pos);
     float intensity = exp(w * 4. - 1.) / (sample_pos.y + 1.0);
@@ -447,7 +447,7 @@ void main() {
     #ifdef THERES_CAUSTICS
 
     // TODO use time, keep in sync with sample_fog
-    vec3 pos = vec3(ws_position.x, -0.0002 * ub_frame, ws_position.z);
+    vec3 pos = vec3(ws_position.x, -0.1 * ub_time, ws_position.z);
     vec3 o = vec3(1.0, 0.0, 1.0) * 0.02;
     float w = water_caustics(pos);
     float intensity = exp(w * 4. - 1.);
