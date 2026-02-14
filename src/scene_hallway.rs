@@ -57,7 +57,7 @@ pub fn load_hallway(
 
     let (mut player_trans, mut player_vel) = player.into_inner();
     *player_trans =
-        Transform::from_xyz(0.0, 2.0, 4.0).looking_at(Vec3::new(0.0, 0.0, -10.0), Vec3::Y);
+        Transform::from_xyz(0.0, 2.5, 4.0).looking_at(Vec3::new(0.0, 0.0, -10.0), Vec3::Y);
     *player_vel = LinearVelocity::ZERO;
 
     sun.illuminance = 0.0;

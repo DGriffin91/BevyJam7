@@ -274,7 +274,7 @@ fn window_control(keyboard_input: Res<ButtonInput<KeyCode>>, mut window: Single<
             window.mode = WindowMode::Windowed;
         }
     }
-    if keyboard_input.just_pressed(KeyCode::Escape) {
+    if keyboard_input.just_pressed(KeyCode::Escape) || keyboard_input.just_pressed(KeyCode::Tab) {
         window.mode = WindowMode::Windowed;
     }
 }

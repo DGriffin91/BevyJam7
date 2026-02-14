@@ -56,6 +56,8 @@ fn setup_player_controller(mut commands: Commands) {
                 jump_speed: 4.0,
                 run_speed: 7.0,
                 walk_speed: 4.5,
+                enable_input: false,
+                key_fly: KeyCode::KeyL,
                 ..default()
             },
         ))
@@ -101,12 +103,12 @@ fn manage_cursor(
                 controller.enable_input = true;
             }
         }
-        if key.just_pressed(KeyCode::Escape) {
-            cursor.grab_mode = CursorGrabMode::None;
-            cursor.visible = true;
-            for mut controller in &mut controller_query {
-                controller.enable_input = false;
-            }
+    }
+    if key.just_pressed(KeyCode::Escape) || key.just_pressed(KeyCode::Tab) {
+        cursor.grab_mode = CursorGrabMode::None;
+        cursor.visible = true;
+        for mut controller in &mut controller_query {
+            controller.enable_input = false;
         }
     }
 }
