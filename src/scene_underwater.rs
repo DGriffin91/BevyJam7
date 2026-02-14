@@ -5,9 +5,11 @@ use bevy_fps_controller::controller::LogicalPlayer;
 use crate::{
     SceneContents, SceneState,
     cascade::{self, SceneBakeName},
+    despawn_scene_contents,
     physics::tri_mesh_collider,
     post_process::PostProcessSettings,
     prepare_lighting::DynamicLight,
+    scene_hallway::load_hallway,
     std_mat_render::Fog,
 };
 
@@ -16,11 +18,10 @@ pub struct UnderwaterGameplayPlugin;
 
 impl Plugin for UnderwaterGameplayPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<PlayerUnderwaterState>();
-        //    .add_systems(
-        //    Update,
-        //    ().run_if(in_state(SceneState::Underwater),
-        //);
+        app.init_resource::<PlayerUnderwaterState>().add_systems(
+            Update,
+            (timed_events).run_if(in_state(SceneState::Underwater)),
+        );
     }
 }
 
@@ -101,6 +102,7 @@ pub fn load_underwater(
             },
         );
 
+    #[allow(unused)]
     let mut ecmds = commands.spawn((
         SceneRoot(
             asset_server
@@ -126,4 +128,17 @@ pub fn load_underwater(
             }
         },
     );
+}
+
+fn timed_events(
+    mut commands: Commands,
+    time: Res<Time>,
+    asset_server: Res<AssetServer>,
+    mut graphs: ResMut<Assets<AnimationGraph>>,
+    camera: Single<&GlobalTransform, With<Camera>>,
+) {
+    if camera.translation().z < -77.0 {
+        commands.run_system_cached(despawn_scene_contents);
+        commands.run_system_cached(load_hallway);
+    }
 }

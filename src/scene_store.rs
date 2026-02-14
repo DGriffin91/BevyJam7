@@ -38,6 +38,7 @@ use crate::{
         trimesh_dyn_collider_scene,
     },
     post_process::PostProcessSettings,
+    scene_underwater::load_underwater,
     std_mat_render::Fog,
 };
 
@@ -373,6 +374,11 @@ fn timed_events(
 ) {
     if state.boxes_in_aisle < 25 {
         state.timer += time.delta_secs();
+    }
+
+    if state.boxes_in_aisle == 0 && state.timer > 4.0 {
+        commands.run_system_cached(despawn_scene_contents);
+        commands.run_system_cached(load_underwater);
     }
 
     let shelves_swap_start = 4.0;
