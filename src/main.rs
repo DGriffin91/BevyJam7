@@ -31,6 +31,7 @@ use bgl2::{
         DrawsSortedByMaterial, init_std_shader_includes, sort_std_mat_by_material,
         standard_material_prepare_view,
     },
+    command_encoder::CommandEncoder,
     phase_shadow::ShadowBounds,
     render::{OpenGLRenderPlugins, RenderSet, register_prepare_system},
 };
@@ -182,6 +183,15 @@ fn main() {
             std_mat_render::standard_material_render,
         );
 
+        app.add_systems(
+            Startup,
+            (|mut enc: ResMut<CommandEncoder>| {
+                enc.record(|ctx, _world| {
+                    ctx.add_shader_include("game::caustics", include_str!("shaders/caustics.glsl"));
+                });
+            })
+            .in_set(RenderSet::Pipeline),
+        );
         #[cfg(feature = "dev")]
         app.add_systems(EguiPrimaryContextPass, (dev_ui, drag_drop_gltf));
     }
