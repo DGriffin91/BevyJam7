@@ -52,6 +52,7 @@ use crate::{
     player::PlayerControllerPlugin,
     post_process::{PostProcessPlugin, PostProcessSettings},
     prepare_lighting::PrepareLightingPlugin,
+    scene_hallway::HallwayGameplayPlugin,
     scene_store::StoreSceneGameplayPlugin,
     std_mat_render::{Fog, generate_tangets},
 };
@@ -162,6 +163,7 @@ fn main() {
                 PostProcessPlugin,
                 PlayerControllerPlugin,
                 StoreSceneGameplayPlugin,
+                HallwayGameplayPlugin,
             ))
             .add_systems(
                 PostUpdate,

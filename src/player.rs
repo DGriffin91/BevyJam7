@@ -25,7 +25,7 @@ impl Plugin for PlayerControllerPlugin {
 fn setup_player_controller(mut commands: Commands) {
     let logical_entity = commands
         .spawn((
-            Collider::cylinder(0.5, 2.0),
+            Collider::cylinder(0.4, 2.0),
             // A capsule can be used but is NOT recommended
             // If you use it, you have to make sure each segment point is
             // equidistant from the translation of the player transform
