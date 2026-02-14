@@ -8,6 +8,7 @@ pub mod prepare_lighting;
 pub mod scene_hallway;
 pub mod scene_store;
 pub mod scene_temple;
+pub mod scene_underwater;
 pub mod std_mat_render;
 
 use argh::FromArgs;
@@ -54,6 +55,7 @@ use crate::{
     prepare_lighting::PrepareLightingPlugin,
     scene_hallway::HallwayGameplayPlugin,
     scene_store::StoreSceneGameplayPlugin,
+    scene_underwater::UnderwaterGameplayPlugin,
     std_mat_render::{Fog, generate_tangets},
 };
 
@@ -79,6 +81,7 @@ pub enum SceneState {
     Hallway,
     Store,
     Temple,
+    Underwater,
 }
 
 fn main() {
@@ -164,6 +167,7 @@ fn main() {
                 PlayerControllerPlugin,
                 StoreSceneGameplayPlugin,
                 HallwayGameplayPlugin,
+                UnderwaterGameplayPlugin,
             ))
             .add_systems(
                 PostUpdate,
@@ -233,6 +237,11 @@ fn dev_ui(
                 use crate::scene_temple::load_temple;
                 commands.run_system_cached(despawn_scene_contents);
                 commands.run_system_cached(load_temple);
+            }
+            if ui.button("Load Underwater").clicked() {
+                use crate::scene_underwater::load_underwater;
+                commands.run_system_cached(despawn_scene_contents);
+                commands.run_system_cached(load_underwater);
             }
         }
     });
