@@ -61,7 +61,7 @@ pub fn blender_cascades(
                         })
                         .remove::<CascadeUniform>();
 
-                    #[cfg(feature = "dev")]
+                    #[cfg(feature = "asset_baking")]
                     ecmds.remove::<CascadeData>();
                 }
             }

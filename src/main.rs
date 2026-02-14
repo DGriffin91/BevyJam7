@@ -226,26 +226,26 @@ fn dev_ui(
                         .insert((NeedsGpuBake, NeedsCourseBake, NeedsFineBake));
                 }
             }
-            if ui.button("Load Store").clicked() {
-                use crate::scene_store::load_store;
-                commands.run_system_cached(despawn_scene_contents);
-                commands.run_system_cached(load_store);
-            }
-            if ui.button("Load hallway").clicked() {
-                use crate::scene_hallway::load_hallway;
-                commands.run_system_cached(despawn_scene_contents);
-                commands.run_system_cached(load_hallway);
-            }
-            if ui.button("Load Temple").clicked() {
-                use crate::scene_temple::load_temple;
-                commands.run_system_cached(despawn_scene_contents);
-                commands.run_system_cached(load_temple);
-            }
-            if ui.button("Load Underwater").clicked() {
-                use crate::scene_underwater::load_underwater;
-                commands.run_system_cached(despawn_scene_contents);
-                commands.run_system_cached(load_underwater);
-            }
+        }
+        if ui.button("Load Store").clicked() {
+            use crate::scene_store::load_store;
+            commands.run_system_cached(despawn_scene_contents);
+            commands.run_system_cached(load_store);
+        }
+        if ui.button("Load hallway").clicked() {
+            use crate::scene_hallway::load_hallway;
+            commands.run_system_cached(despawn_scene_contents);
+            commands.run_system_cached(load_hallway);
+        }
+        if ui.button("Load Temple").clicked() {
+            use crate::scene_temple::load_temple;
+            commands.run_system_cached(despawn_scene_contents);
+            commands.run_system_cached(load_temple);
+        }
+        if ui.button("Load Underwater").clicked() {
+            use crate::scene_underwater::load_underwater;
+            commands.run_system_cached(despawn_scene_contents);
+            commands.run_system_cached(load_underwater);
         }
     });
 }
