@@ -63,6 +63,7 @@ pub fn load_hallway(
     sun.illuminance = 0.0;
 
     fog.fog_color = vec4(5.0, 5.0, 5.0, 1.0);
+    fog.caustics = vec4(0.5, 0.0, 0.0, 1.0);
 
     commands
         .spawn((
@@ -157,7 +158,7 @@ struct Ghost;
 
 fn ghost_movement(
     mut commands: Commands,
-    mut ghost: Single<&mut Transform, With<Ghost>>,
+    ghost: Single<&mut Transform, With<Ghost>>,
     time: Res<Time>,
     camera: Single<&GlobalTransform, With<Camera>>,
     boxes: Query<(Entity, &GlobalTransform), (With<ThrownBox>, Without<LogicalPlayer>)>,

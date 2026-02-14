@@ -25,8 +25,7 @@ use bevy::{
 };
 #[cfg(feature = "dev")]
 use bevy_egui::{EguiContexts, EguiPrimaryContextPass, egui};
-#[cfg(feature = "dev")]
-use bevy_fps_controller::controller::FpsController;
+
 use bevy_mod_mipmap_generator::{MipmapGeneratorPlugin, generate_mipmaps};
 use bgl2::{
     bevy_standard_material::{

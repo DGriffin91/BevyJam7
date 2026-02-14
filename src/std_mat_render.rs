@@ -29,6 +29,7 @@ use crate::prepare_lighting::GameLightingUniforms;
 #[uniform_set(prefix = "ub_")]
 pub struct Fog {
     pub fog_color: Vec4,
+    pub caustics: Vec4,
 }
 
 pub fn standard_material_render(
@@ -176,6 +177,12 @@ pub fn standard_material_render(
             false
         };
 
+        let theres_caustics = if let Some(fog) = &fog {
+            fog.caustics != Vec4::ZERO
+        } else {
+            false
+        };
+
         let lighting_uniforms = world.resource::<GameLightingUniforms>().clone();
         #[allow(unexpected_cfgs)]
         let shader_index = shader_cached!(
@@ -196,6 +203,11 @@ pub fn standard_material_render(
                 },
                 if theres_fog {
                     ("THERES_FOG", "")
+                } else {
+                    ("", "")
+                },
+                if theres_caustics {
+                    ("THERES_CAUSTICS", "")
                 } else {
                     ("", "")
                 }

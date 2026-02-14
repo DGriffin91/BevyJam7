@@ -71,6 +71,7 @@ pub fn load_store(
 
     //fog.fog_color = vec4(0.01, 0.01, 0.01, 1.0);
     fog.fog_color = Vec4::ZERO;
+    fog.caustics = Vec4::ZERO;
 
     let shelf =
         asset_server.load(GltfAssetLabel::Scene(0).from_asset("testing/models/store_shelf.gltf"));

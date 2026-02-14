@@ -55,12 +55,13 @@ pub fn load_underwater(
 
     let (mut player_trans, mut player_vel) = player.into_inner();
     *player_trans =
-        Transform::from_xyz(0.0, 70.0, -16.0).looking_at(Vec3::new(0.0, 0.0, -10.0), Vec3::Y);
+        Transform::from_xyz(0.0, 2.5, -1.5).looking_at(Vec3::new(0.0, 0.0, -10.0), Vec3::Y);
     *player_vel = LinearVelocity::ZERO;
 
     sun.illuminance = 0.0;
 
     fog.fog_color = vec4(0.1, 0.2, 0.5, 1.0);
+    fog.caustics = vec4(0.3, 0.6, 1.0, 1.0);
 
     commands
         .spawn((
