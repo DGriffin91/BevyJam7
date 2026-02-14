@@ -171,6 +171,9 @@ struct AnimationToPlay {
 }
 
 #[derive(Component, Default)]
+pub struct ThrownBox;
+
+#[derive(Component, Default)]
 pub struct MacBox;
 
 #[derive(Component)]
@@ -272,6 +275,7 @@ pub fn throw_box(
                                     RigidBody::Dynamic,
                                     LinearVelocity(camera.forward().as_vec3() * 10.0),
                                     MacBox,
+                                    ThrownBox,
                                     //Mass(0.001),
                                 ));
                             }

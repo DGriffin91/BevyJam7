@@ -1,4 +1,4 @@
-use avian3d::prelude::LinearVelocity;
+use avian3d::prelude::*;
 use bevy::{prelude::*, scene::SceneInstanceReady};
 use bevy_fps_controller::controller::LogicalPlayer;
 
@@ -6,9 +6,10 @@ use crate::{
     SceneContents, SceneState,
     cascade::{self, SceneBakeName},
     despawn_scene_contents,
+    draw_debug::DebugLines,
     physics::{convex_hull_dyn_collider_indv, tri_mesh_collider},
     post_process::PostProcessSettings,
-    scene_store::{MacBox, pickup_box, throw_box},
+    scene_store::{HeldBox, MacBox, ThrownBox},
     std_mat_render::Fog,
 };
 
@@ -26,7 +27,8 @@ impl Plugin for HallwayGameplayPlugin {
 
 #[derive(Resource, Default)]
 pub struct PlayerHallwayState {
-    pub timer: f32,
+    pub ghost_up_timer: f32,
+    pub has_box: bool,
 }
 
 #[derive(Component)]
@@ -158,15 +160,139 @@ fn ghost_movement(
     mut ghost: Single<&mut Transform, With<Ghost>>,
     time: Res<Time>,
     camera: Single<&GlobalTransform, With<Camera>>,
+    boxes: Query<(Entity, &GlobalTransform), (With<ThrownBox>, Without<LogicalPlayer>)>,
+    mut state: ResMut<PlayerHallwayState>,
 ) {
-    ghost.translation.y = (time.elapsed_secs() * 2.0).sin() * 0.5 + 1.0;
     let camera_pos = camera.translation();
-    if camera_pos.z < -13.5 {
+    let camera_pos_high = camera_pos + Vec3::Y;
+    let camera_pos_low = camera_pos - Vec3::Y;
+    let mut ghost = ghost.into_inner();
+
+    let ghost_pos = ghost.translation;
+    let mut box_is_thrown = false;
+    if let Some((_box_entity, trans)) = boxes.iter().next() {
+        state.ghost_up_timer += time.delta_secs();
+        if state.ghost_up_timer > 2.0 {
+            let thrown_box_pos = trans.translation();
+            ghost.look_to(-(thrown_box_pos - ghost_pos).normalize(), Vec3::Y);
+            if (thrown_box_pos - Vec3::Y).distance(ghost_pos) > 3.0 {
+                ghost.translation +=
+                    (thrown_box_pos - ghost_pos).normalize() * time.elapsed_secs() * 0.001;
+            }
+        } else {
+            ghost.translation += Vec3::Y * time.delta_secs() * 10.0;
+        }
+        box_is_thrown = true;
+    } else {
+        ghost.translation.y = (time.elapsed_secs() * 2.0).sin() * 0.5 + 1.0;
+        state.ghost_up_timer = 0.0;
+    }
+
+    if camera_pos.z < -13.5 && !box_is_thrown {
         ghost.translation.y = (time.elapsed_secs() * 100.0).sin() * 0.4 + 1.3;
         ghost.translation.z += time.delta_secs() * 10.0;
-        if ghost.translation.z > camera_pos.z {
-            commands.run_system_cached(despawn_scene_contents);
-            commands.run_system_cached(load_hallway);
+    }
+
+    if ghost.translation.distance(camera_pos) < 5.0 {
+        ghost.look_to(-(camera_pos_low - ghost_pos).normalize(), Vec3::Y);
+        ghost.translation +=
+            (camera_pos_high - ghost_pos).normalize() * time.elapsed_secs() * 0.0023;
+    }
+    if ghost.translation.distance(camera_pos) < 1.5 {
+        commands.run_system_cached(despawn_scene_contents);
+        commands.run_system_cached(load_hallway);
+    }
+}
+
+pub fn pickup_box(
+    mut commands: Commands,
+    player: Single<(Entity, &Transform), With<LogicalPlayer>>,
+    camera: Single<(Entity, &Transform), With<Camera3d>>,
+    boxes: Query<
+        (Entity, &GlobalTransform, &LinearVelocity),
+        (With<MacBox>, Without<LogicalPlayer>),
+    >,
+    mut state: ResMut<PlayerHallwayState>,
+    asset_server: Res<AssetServer>,
+) {
+    let (_player_entity, player_trans) = player.into_inner();
+    let (camera_entity, _camera_trans) = camera.into_inner();
+    if !state.has_box {
+        for (mac_box_entity, mac_global_trans, vel) in boxes {
+            if player_trans
+                .translation
+                .distance(mac_global_trans.translation())
+                < 1.8
+                && vel.length() < 2.0
+            {
+                commands.entity(mac_box_entity).despawn();
+                state.has_box = true;
+
+                commands.entity(camera_entity).with_children(|parent| {
+                    parent.spawn((
+                        SceneRoot(
+                            asset_server.load(
+                                GltfAssetLabel::Scene(0)
+                                    .from_asset("testing/models/store_single_box.gltf"),
+                            ),
+                        ),
+                        HallwayScene,
+                        SceneContents,
+                        Transform::from_translation(vec3(0.0, -0.3, -0.6)),
+                        HeldBox,
+                    ));
+                });
+
+                break;
+            }
+        }
+    }
+}
+
+pub fn throw_box(
+    mut commands: Commands,
+    camera: Single<&GlobalTransform, With<Camera>>,
+    boxes: Query<Entity, With<HeldBox>>,
+    mut state: ResMut<PlayerHallwayState>,
+    asset_server: Res<AssetServer>,
+    btn: Res<ButtonInput<MouseButton>>,
+    #[allow(unused)] mut debug: ResMut<DebugLines>,
+) {
+    if btn.just_pressed(MouseButton::Left) && state.has_box {
+        state.has_box = false;
+        let camera = camera.clone();
+        for box_entity in &boxes {
+            commands.entity(box_entity).despawn();
+            commands
+                .spawn((
+                    SceneRoot(asset_server.load(
+                        GltfAssetLabel::Scene(0).from_asset("testing/models/store_single_box.gltf"),
+                    )),
+                    HallwayScene,
+                    SceneContents,
+                    Transform::from_translation(camera.translation() + *camera.forward()),
+                ))
+                .observe(
+                    move |scene_ready: On<SceneInstanceReady>,
+                          mut commands: Commands,
+                          children: Query<&Children>,
+                          mesh_entities: Query<(Entity, &Mesh3d)>,
+                          meshes: Res<Assets<Mesh>>| {
+                        for entity in children.iter_descendants(scene_ready.entity) {
+                            if let Ok((entity, mesh)) = mesh_entities.get(entity) {
+                                let mesh = meshes.get(mesh).unwrap();
+                                commands.entity(entity).insert((
+                                    Collider::convex_hull_from_mesh(mesh).unwrap(),
+                                    RigidBody::Dynamic,
+                                    LinearVelocity(camera.forward().as_vec3() * 5.0),
+                                    MacBox,
+                                    ThrownBox,
+                                    //Mass(0.001),
+                                ));
+                            }
+                        }
+                    },
+                );
         }
     }
 }
