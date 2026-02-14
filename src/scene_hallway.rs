@@ -6,8 +6,9 @@ use crate::{
     SceneContents, SceneState,
     cascade::{self, SceneBakeName},
     despawn_scene_contents,
-    physics::tri_mesh_collider,
+    physics::{convex_hull_dyn_collider_indv, tri_mesh_collider},
     post_process::PostProcessSettings,
+    scene_store::{MacBox, pickup_box, throw_box},
     std_mat_render::Fog,
 };
 
@@ -18,7 +19,7 @@ impl Plugin for HallwayGameplayPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PlayerHallwayState>().add_systems(
             Update,
-            (ghost_movement).run_if(in_state(SceneState::Hallway)),
+            (ghost_movement, pickup_box, throw_box).run_if(in_state(SceneState::Hallway)),
         );
     }
 }
@@ -111,6 +112,31 @@ pub fn load_hallway(
             },
         )
         .observe(tri_mesh_collider);
+
+    commands
+        .spawn((
+            SceneRoot(
+                asset_server.load(
+                    GltfAssetLabel::Scene(0).from_asset("testing/models/store_single_box.gltf"),
+                ),
+            ),
+            HallwayScene,
+            SceneContents,
+            Transform::from_translation(vec3(1.0, 0.2, -10.0)),
+        ))
+        .observe(convex_hull_dyn_collider_indv)
+        .observe(
+            |scene_ready: On<SceneInstanceReady>,
+             mut commands: Commands,
+             children: Query<&Children>,
+             mesh_entities: Query<Entity, With<Mesh3d>>| {
+                for entity in children.iter_descendants(scene_ready.entity) {
+                    if let Ok(entity) = mesh_entities.get(entity) {
+                        commands.entity(entity).insert(MacBox::default());
+                    }
+                }
+            },
+        );
 
     commands.spawn((
         SceneRoot(

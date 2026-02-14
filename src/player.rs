@@ -106,7 +106,6 @@ fn manage_cursor(
             cursor.visible = true;
             for mut controller in &mut controller_query {
                 controller.enable_input = false;
-                dbg!("!");
             }
         }
     }

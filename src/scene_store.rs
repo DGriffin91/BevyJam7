@@ -182,7 +182,7 @@ pub struct HeldBox;
 #[derive(Component)]
 pub struct StoreScene;
 
-#[derive(Resource, Default)]
+#[derive(Resource, Default, Debug)]
 pub struct PlayerStoreState {
     pub has_box: bool,
     pub timer: f32,
