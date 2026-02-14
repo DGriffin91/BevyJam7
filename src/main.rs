@@ -188,7 +188,12 @@ fn main() {
 
     app.init_resource::<Fog>()
         .add_plugins(ConvertCascadePlugin)
-        .add_systems(Startup, (setup, scene_store::load_store).chain())
+        .add_systems(
+            Startup,
+            (setup, scene_store::load_store)
+                .chain()
+                .after(init_std_shader_includes),
+        )
         .add_systems(Update, generate_mipmaps::<StandardMaterial>)
         .add_systems(Update, window_control)
         .add_systems(Update, generate_tangets);
