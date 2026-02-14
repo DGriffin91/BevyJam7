@@ -88,7 +88,7 @@ pub fn load_underwater(
                         point_light.intensity *= 50.0;
                     } else if let Ok(mut spot_light) = spot_lights.get_mut(entity) {
                         spot_light.shadows_enabled = true;
-                        spot_light.intensity *= 10000.0;
+                        spot_light.intensity *= 1000.0;
                         spot_light.range = 10000.0;
                     } else {
                         continue;
