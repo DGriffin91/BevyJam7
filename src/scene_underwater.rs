@@ -1,5 +1,5 @@
 use avian3d::prelude::*;
-use bevy::{prelude::*, scene::SceneInstanceReady};
+use bevy::{math::NormedVectorSpace, prelude::*, scene::SceneInstanceReady};
 use bevy_fps_controller::controller::LogicalPlayer;
 
 use crate::{
@@ -20,7 +20,7 @@ impl Plugin for UnderwaterGameplayPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PlayerUnderwaterState>().add_systems(
             Update,
-            (timed_events).run_if(in_state(SceneState::Underwater)),
+            (timed_events, move_airships).run_if(in_state(SceneState::Underwater)),
         );
     }
 }
@@ -76,31 +76,7 @@ pub fn load_underwater(
             SceneBakeName(String::from("Underwater")),
         ))
         .observe(cascade::blender_cascades)
-        .observe(tri_mesh_collider)
-        .observe(
-            |scene_ready: On<SceneInstanceReady>,
-             children: Query<&Children>,
-             mut point_lights: Query<&mut PointLight>,
-             mut spot_lights: Query<&mut SpotLight>,
-             mut commands: Commands| {
-                for entity in children.iter_descendants(scene_ready.entity) {
-                    if let Ok(mut point_light) = point_lights.get_mut(entity) {
-                        point_light.shadows_enabled = true;
-                        point_light.intensity *= 50.0;
-                    } else if let Ok(mut spot_light) = spot_lights.get_mut(entity) {
-                        spot_light.shadows_enabled = true;
-                        spot_light.intensity *= 1000.0;
-                        spot_light.range = 10000.0;
-                    } else {
-                        continue;
-                    };
-                    let mut ecmds = commands.entity(entity);
-                    ecmds.insert(DynamicLight);
-                    #[cfg(feature = "asset_baking")]
-                    ecmds.insert(light_volume_baker::rt_scene::NoBake);
-                }
-            },
-        );
+        .observe(tri_mesh_collider);
 
     #[allow(unused)]
     let mut ecmds = commands.spawn((
@@ -112,6 +88,24 @@ pub fn load_underwater(
         SceneContents,
         SceneBakeName(String::from("Underwater")),
     ));
+
+    let ship_scene = asset_server
+        .load(GltfAssetLabel::Scene(0).from_asset("testing/models/underwater_airship.gltf"));
+    for i in 0..4 {
+        let pos = SHIP_DESTINATIONS[i];
+        commands
+            .spawn((
+                SceneRoot(ship_scene.clone()),
+                UnderwaterScene,
+                SceneContents,
+                Transform::from_translation(vec3(pos.x, pos.y + i as f32 * 10.0, pos.z)),
+                Airship {
+                    destination: i,
+                    speed: i as f32 * 0.1 + 1.0,
+                },
+            ))
+            .observe(proc_ship);
+    }
 
     #[cfg(feature = "asset_baking")]
     ecmds.observe(
@@ -140,5 +134,70 @@ fn timed_events(
     if camera.translation().z < -77.0 {
         commands.run_system_cached(despawn_scene_contents);
         commands.run_system_cached(load_hallway);
+    }
+}
+
+fn move_airships(mut airships: Query<(&mut Transform, &mut Airship)>, time: Res<Time>) {
+    for (mut trans, mut ship) in &mut airships {
+        let mut old_dest = SHIP_DESTINATIONS[ship.destination];
+        old_dest.y = trans.translation.y;
+        if old_dest.distance(trans.translation) < 5.0 {
+            ship.destination = (ship.destination + 1) % SHIP_DESTINATIONS.len();
+        }
+        let mut current_dest = SHIP_DESTINATIONS[ship.destination];
+        current_dest.y = trans.translation.y;
+        let current_pos = trans.translation;
+        let to = current_dest - current_pos;
+
+        if to.length_squared() < 0.0001 {
+            ship.destination = (ship.destination + 1) % SHIP_DESTINATIONS.len();
+            continue;
+        }
+        let dest_vec = to.normalize();
+        let desired = trans.looking_at(current_dest, Vec3::Y).rotation;
+        let turn = 0.15;
+        trans.rotation = trans
+            .rotation
+            .slerp(desired, 1.0 - (-turn * time.delta_secs()).exp());
+        let align = dest_vec.dot(*trans.forward()).clamp(0.0, 1.0);
+        trans.translation += dest_vec * (10.0 * align * ship.speed) * time.delta_secs();
+    }
+}
+
+#[derive(Component, Clone, Debug, Default)]
+struct Airship {
+    destination: usize,
+    speed: f32,
+}
+
+const SHIP_DESTINATIONS: [Vec3; 4] = [
+    vec3(-50.0, 40.0, -80.0),
+    vec3(-50.0, 40.0, -40.0),
+    vec3(50.0, 40.0, -80.0),
+    vec3(50.0, 40.0, -40.0),
+];
+
+fn proc_ship(
+    scene_ready: On<SceneInstanceReady>,
+    children: Query<&Children>,
+    mut point_lights: Query<&mut PointLight>,
+    mut spot_lights: Query<&mut SpotLight>,
+    mut commands: Commands,
+) {
+    for entity in children.iter_descendants(scene_ready.entity) {
+        if let Ok(mut point_light) = point_lights.get_mut(entity) {
+            point_light.shadows_enabled = true;
+            point_light.intensity *= 50.0;
+        } else if let Ok(mut spot_light) = spot_lights.get_mut(entity) {
+            spot_light.shadows_enabled = true;
+            spot_light.intensity *= 1000.0;
+            spot_light.range = 10000.0;
+        } else {
+            continue;
+        };
+        let mut ecmds = commands.entity(entity);
+        ecmds.insert(DynamicLight);
+        #[cfg(feature = "asset_baking")]
+        ecmds.insert(light_volume_baker::rt_scene::NoBake);
     }
 }

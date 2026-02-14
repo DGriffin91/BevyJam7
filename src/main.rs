@@ -200,7 +200,7 @@ fn main() {
         .add_plugins(ConvertCascadePlugin)
         .add_systems(
             Startup,
-            (setup, scene_store::load_store)
+            (setup, scene_underwater::load_underwater)
                 .chain()
                 .after(init_std_shader_includes),
         )
