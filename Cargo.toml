@@ -47,7 +47,7 @@ bgl2 = { git = "https://github.com/DGriffin91/bgl2" }
 glow = "0.16"
 bytemuck = "1.24"
 
-light_volume_baker = { path = "../light_volume_baker", optional = true }
+#light_volume_baker = { path = "../light_volume_baker", optional = true }
 pathdiff = {version = "0.2.3", optional = true }
 
 egui_glow = "0.33"
@@ -74,7 +74,7 @@ opt-level = 3
 [features]
 #default = ["dev"]
 dev = ["dep:pathdiff"] #"bevy/file_watcher",
-asset_baking = ["dep:light_volume_baker"]
+asset_baking = [] #"dep:light_volume_baker"
 
 [lints.clippy]
 too_many_arguments = "allow"
