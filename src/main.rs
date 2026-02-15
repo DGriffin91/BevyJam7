@@ -176,7 +176,8 @@ fn main() {
             .add_systems(
                 Startup,
                 init_std_shader_includes.in_set(RenderSet::Pipeline),
-            );
+            )
+            .add_systems(Startup, pre_load_some_assets);
         register_prepare_system(app.world_mut(), standard_material_prepare_view);
         //register_prepare_system(app.world_mut(), copy_depth_prepass);
         register_render_system::<StandardMaterial, _>(
@@ -339,5 +340,31 @@ pub fn despawn_scene_contents(
 ) {
     for entity in &scene_contents {
         commands.entity(entity).despawn();
+    }
+}
+
+fn pre_load_some_assets(asset_server: Res<AssetServer>, mut scenes: Local<Vec<Handle<Scene>>>) {
+    // Usually I use bevy_asset_loader but I ran out of time and forgot at the start
+    for path in [
+        "testing/models/Falling.gltf",
+        "testing/models/Hallway.gltf",
+        "testing/models/hallway_collider_mesh.gltf",
+        "testing/models/store_single_box.gltf",
+        "testing/models/hallway_ghost.gltf",
+        "testing/models/store_single_box.gltf",
+        "testing/models/store_shelf.gltf",
+        "testing/models/store_cart.gltf",
+        "testing/models/store_boxes_on_floor.gltf",
+        "testing/models/Store.gltf",
+        "testing/models/store_single_box.gltf",
+        "testing/models/store_mac_shelf.gltf",
+        "testing/models/store_mac_anim.gltf",
+        "testing/models/store_mac_anim.gltf",
+        "testing/models/Underwater.gltf",
+        "testing/models/underwater_skybox.gltf",
+        "testing/models/underwater_airship.gltf",
+        "testing/models/underwater_collider_mesh.gltf",
+    ] {
+        scenes.push(asset_server.load(GltfAssetLabel::Scene(0).from_asset(path)));
     }
 }

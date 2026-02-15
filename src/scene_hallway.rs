@@ -206,11 +206,11 @@ fn ghost_movement(
         ghost.translation +=
             (camera_pos_high - ghost_pos).normalize() * time.elapsed_secs() * 0.0015;
     }
-    if ghost.translation.distance(camera_pos) < 1.5 {
+    if ghost.translation.distance(camera_pos) < 1.5 || camera_pos.y < -10.0 {
         commands.run_system_cached(despawn_scene_contents);
         commands.run_system_cached(load_hallway);
     }
-    if camera_pos.z < -20.0 {
+    if camera_pos.z < -20.0 && box_is_thrown {
         commands.run_system_cached(despawn_scene_contents);
         commands.run_system_cached(load_falling);
     }

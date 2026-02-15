@@ -13,7 +13,10 @@ pub struct ConvertCascadePlugin;
 
 impl Plugin for ConvertCascadePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (generate_cascade_data).chain());
+        app.add_systems(
+            PostUpdate,
+            generate_cascade_data.in_set(RenderSet::Pipeline),
+        );
     }
 }
 
@@ -69,6 +72,7 @@ pub fn blender_cascades(
     }
 }
 
+use bgl2::render::RenderSet;
 #[cfg(feature = "asset_baking")]
 use light_volume_baker::CascadeData;
 use obvhs::ray::Ray;
