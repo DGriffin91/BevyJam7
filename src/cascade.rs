@@ -43,28 +43,29 @@ pub fn blender_cascades(
         .0;
     for entity in children.iter_descendants(scene_ready.entity) {
         if let Ok((entity, name, trans, extras)) = gltf_extras.get(entity)
-            && name.contains("BAKE") {
-                let extras: ProbeBakeExtras = serde_json::from_str(&extras.value).unwrap();
-                if let Some(bake_res) = extras.probe_bake_res {
-                    let scale: Vec3A = trans.scale.into();
-                    let position = trans.translation.to_vec3a();
-                    let start = position - scale;
-                    let end = position + scale;
-                    let mut full_name = name_prefix.clone();
-                    full_name.push_str(name);
-                    let mut ecmds = commands.entity(entity);
-                    ecmds
-                        .insert(CascadeInput {
-                            name: full_name,
-                            ws_aabb: obvhs::aabb::Aabb::new(start, end),
-                            resolution: vec3a(bake_res[0], bake_res[1], bake_res[2]),
-                        })
-                        .remove::<CascadeUniform>();
+            && name.contains("BAKE")
+        {
+            let extras: ProbeBakeExtras = serde_json::from_str(&extras.value).unwrap();
+            if let Some(bake_res) = extras.probe_bake_res {
+                let scale: Vec3A = trans.scale.into();
+                let position = trans.translation.to_vec3a();
+                let start = position - scale;
+                let end = position + scale;
+                let mut full_name = name_prefix.clone();
+                full_name.push_str(name);
+                let mut ecmds = commands.entity(entity);
+                ecmds
+                    .insert(CascadeInput {
+                        name: full_name,
+                        ws_aabb: obvhs::aabb::Aabb::new(start, end),
+                        resolution: vec3a(bake_res[0], bake_res[1], bake_res[2]),
+                    })
+                    .remove::<CascadeUniform>();
 
-                    #[cfg(feature = "asset_baking")]
-                    ecmds.remove::<CascadeData>();
-                }
+                #[cfg(feature = "asset_baking")]
+                ecmds.remove::<CascadeData>();
             }
+        }
     }
 }
 

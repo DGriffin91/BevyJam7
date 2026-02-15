@@ -85,9 +85,10 @@ pub fn load_falling(
              named: Query<(Entity, &Name)>| {
                 for entity in children.iter_descendants(scene_ready.entity) {
                     if let Ok((entity, name)) = named.get(entity)
-                        && name.contains("Ring") {
-                            commands.entity(entity).insert(Ring);
-                        }
+                        && name.contains("Ring")
+                    {
+                        commands.entity(entity).insert(Ring);
+                    }
                 }
             },
         )

@@ -322,8 +322,9 @@ pub fn generate_tangets(
             _ => continue,
         }; // | AssetEvent::Modified { id }
         if let Some(mesh) = bevy_meshes.get_mut(*mesh_h)
-            && mesh.attribute(Mesh::ATTRIBUTE_TANGENT).is_none() {
-                mesh.generate_tangents().unwrap();
-            }
+            && mesh.attribute(Mesh::ATTRIBUTE_TANGENT).is_none()
+        {
+            mesh.generate_tangents().unwrap();
+        }
     }
 }

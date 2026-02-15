@@ -96,14 +96,13 @@ fn manage_cursor(
     if let Ok(ctx) = contexts.ctx_mut() {
         wants_input = ctx.wants_pointer_input() || ctx.wants_keyboard_input();
     }
-    if !wants_input
-        && btn.just_pressed(MouseButton::Left) {
-            cursor.grab_mode = CursorGrabMode::Locked;
-            cursor.visible = false;
-            for mut controller in &mut controller_query {
-                controller.enable_input = true;
-            }
+    if !wants_input && btn.just_pressed(MouseButton::Left) {
+        cursor.grab_mode = CursorGrabMode::Locked;
+        cursor.visible = false;
+        for mut controller in &mut controller_query {
+            controller.enable_input = true;
         }
+    }
     if key.just_pressed(KeyCode::Escape) || key.just_pressed(KeyCode::Tab) {
         cursor.grab_mode = CursorGrabMode::None;
         cursor.visible = true;

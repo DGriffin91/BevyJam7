@@ -408,25 +408,24 @@ fn timed_events(
     let shelves_swap_start = 4.0;
     let spawn_big_box = shelves_swap_start + 20.0;
 
-    if state.timer > shelves_swap_start
-        && !shelves.is_empty() {
-            let shelf = asset_server
-                .load(GltfAssetLabel::Scene(0).from_asset("testing/models/store_mac_shelf.gltf"));
-            for (shelf_entity, shelf_trans, shelf_index) in &shelves {
-                if (state.timer - shelves_swap_start) * 3.0 > shelf_index.0 as f32 {
-                    commands.entity(shelf_entity).despawn();
-                    commands
-                        .spawn((
-                            *shelf_trans,
-                            SceneRoot(shelf.clone()),
-                            StoreScene,
-                            SceneContents,
-                            StoreMacShelf,
-                        ))
-                        .observe(convex_hull_collider);
-                }
+    if state.timer > shelves_swap_start && !shelves.is_empty() {
+        let shelf = asset_server
+            .load(GltfAssetLabel::Scene(0).from_asset("testing/models/store_mac_shelf.gltf"));
+        for (shelf_entity, shelf_trans, shelf_index) in &shelves {
+            if (state.timer - shelves_swap_start) * 3.0 > shelf_index.0 as f32 {
+                commands.entity(shelf_entity).despawn();
+                commands
+                    .spawn((
+                        *shelf_trans,
+                        SceneRoot(shelf.clone()),
+                        StoreScene,
+                        SceneContents,
+                        StoreMacShelf,
+                    ))
+                    .observe(convex_hull_collider);
             }
         }
+    }
 
     if !state.big_box_has_been_spawned && state.timer > spawn_big_box {
         state.big_box_has_been_spawned = true;

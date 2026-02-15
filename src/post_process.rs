@@ -64,9 +64,7 @@ fn render_post_process(
                     cast_slice(&positions),
                     glow::STATIC_DRAW,
                 );
-                world.insert_resource(PostProcessBuffers {
-                    positions_vbo,
-                });
+                world.insert_resource(PostProcessBuffers { positions_vbo });
                 positions_vbo
             };
 

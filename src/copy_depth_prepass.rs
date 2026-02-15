@@ -22,7 +22,7 @@ pub fn copy_depth_prepass(
     } else {
         just_init = true;
         let texture_ref = TextureRef::new();
-        
+
         PrepassTexture {
             texture: texture_ref.clone(),
             width,
