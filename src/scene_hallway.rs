@@ -202,7 +202,7 @@ fn ghost_movement(
     if ghost.translation.distance(camera_pos) < 5.0 {
         ghost.look_to(-(camera_pos_low - ghost_pos).normalize(), Vec3::Y);
         ghost.translation +=
-            (camera_pos_high - ghost_pos).normalize() * time.elapsed_secs() * 0.0023;
+            (camera_pos_high - ghost_pos).normalize() * time.elapsed_secs() * 0.0015;
     }
     if ghost.translation.distance(camera_pos) < 1.5 {
         commands.run_system_cached(despawn_scene_contents);
