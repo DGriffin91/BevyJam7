@@ -196,6 +196,7 @@ pub struct StoreScene;
 #[derive(Resource, Default, Debug)]
 pub struct PlayerStoreState {
     pub has_box: bool,
+    pub had_box_once: bool,
     pub timer: f32,
     pub big_box_has_been_spawned: bool,
     pub boxes_in_aisle: u32,
@@ -224,6 +225,7 @@ pub fn pickup_box(
             {
                 commands.entity(mac_box_entity).despawn();
                 state.has_box = true;
+                state.had_box_once = true;
 
                 commands.entity(camera_entity).with_children(|parent| {
                     parent.spawn((
@@ -400,7 +402,7 @@ fn timed_events(
         state.timer += time.delta_secs();
     }
 
-    if state.boxes_in_aisle == 0 && state.timer > 4.0 {
+    if state.boxes_in_aisle == 0 && state.timer > 4.0 && state.had_box_once {
         commands.run_system_cached(despawn_scene_contents);
         commands.run_system_cached(load_underwater);
     }
