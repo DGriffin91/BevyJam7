@@ -303,24 +303,24 @@ fn drag_drop_gltf(
     mut added: Local<bevy::platform::collections::HashSet<std::path::PathBuf>>,
 ) {
     for e in drag_and_drop_reader.read() {
-        if let FileDragAndDrop::DroppedFile { path_buf, .. } = e {
-            if added.insert(path_buf.clone()) {
-                use crate::cascade::SceneBakeName;
+        if let FileDragAndDrop::DroppedFile { path_buf, .. } = e
+            && added.insert(path_buf.clone())
+        {
+            use crate::cascade::SceneBakeName;
 
-                let path = relative_to_assets(path_buf).unwrap();
-                let scene_bake_name = path
-                    .file_prefix()
-                    .unwrap_or_default()
-                    .to_str()
-                    .unwrap_or_default()
-                    .to_string();
-                commands
-                    .spawn((
-                        SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(path))),
-                        SceneBakeName(scene_bake_name),
-                    ))
-                    .observe(cascade::blender_cascades);
-            }
+            let path = relative_to_assets(path_buf).unwrap();
+            let scene_bake_name = path
+                .file_prefix()
+                .unwrap_or_default()
+                .to_str()
+                .unwrap_or_default()
+                .to_string();
+            commands
+                .spawn((
+                    SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset(path))),
+                    SceneBakeName(scene_bake_name),
+                ))
+                .observe(cascade::blender_cascades);
         }
     }
 }

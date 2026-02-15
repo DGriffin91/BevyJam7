@@ -264,11 +264,12 @@ fn proc_ship(
                 ecmds.insert(light_volume_baker::rt_scene::NoBake);
             };
             if let Ok((entity, name)) = named.get(entity)
-                && name.contains("SEARCH_LIGHT") {
-                    commands.entity(entity).insert(Searchlight {
-                        index: airship.index,
-                    });
-                }
+                && name.contains("SEARCH_LIGHT")
+            {
+                commands.entity(entity).insert(Searchlight {
+                    index: airship.index,
+                });
+            }
         }
     }
 }

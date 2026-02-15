@@ -79,3 +79,4 @@ asset_baking = ["dep:light_volume_baker"]
 [lints.clippy]
 too_many_arguments = "allow"
 type_complexity = "allow"
+needless_range_loop = "allow"

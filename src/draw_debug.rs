@@ -111,10 +111,10 @@ fn draw_debug_lines(
             ctx.start_alpha_blend();
             ctx.gl.disable(glow::DEPTH_TEST);
 
-            world.remove_resource::<DrawDebugBuffers>().map(|b| {
+            if let Some(b) = world.remove_resource::<DrawDebugBuffers>() {
                 ctx.gl.delete_buffer(b.positions_vbo);
                 ctx.gl.delete_buffer(b.colors_vbo);
-            });
+            }
             ctx.use_cached_program(shader_index);
             ctx.map_uniform_set_locations::<ViewUniforms>();
             ctx.bind_uniforms_set(
