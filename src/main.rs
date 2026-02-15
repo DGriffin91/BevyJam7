@@ -216,14 +216,6 @@ fn main() {
     app.add_plugins(MipmapGeneratorPlugin)
         .add_systems(Update, generate_mipmaps::<StandardMaterial>);
 
-    #[cfg(target_arch = "wasm32")]
-    app.add_systems(
-        Update,
-        sync_canvas_and_window_size
-            .in_set(RenderSet::Present)
-            .after(bgl2::render::present),
-    );
-
     app.run();
 }
 
@@ -382,28 +374,4 @@ fn pre_load_some_assets(asset_server: Res<AssetServer>, mut scenes: Local<Vec<Ha
     ] {
         scenes.push(asset_server.load(GltfAssetLabel::Scene(0).from_asset(path)));
     }
-}
-
-#[cfg(target_arch = "wasm32")]
-fn sync_canvas_and_window_size(mut bevy_window: Single<(Entity, &mut Window)>) {
-    use winit::platform::web::WindowExtWebSys;
-    let (bevy_window_entity, window) = &mut *bevy_window;
-    bevy::winit::WINIT_WINDOWS.with_borrow(|winit_windows| {
-        let Some(winit_window) = winit_windows.get_window(*bevy_window_entity) else {
-            return;
-        };
-        let canvas = winit_window.canvas().unwrap();
-        let rect = canvas.get_bounding_client_rect();
-        let css_w = rect.width().max(1.0);
-        let css_h = rect.height().max(1.0);
-        let dpr = web_sys::window().unwrap().device_pixel_ratio().max(1.0);
-        let phys_w = (css_w * dpr).round().max(1.0) as u32;
-        let phys_h = (css_h * dpr).round().max(1.0) as u32;
-        if canvas.width() != phys_w || canvas.height() != phys_h {
-            canvas.set_width(phys_w);
-            canvas.set_height(phys_h);
-            window.resolution.set_physical_resolution(phys_w, phys_h);
-            window.resolution.set_scale_factor(dpr as f32);
-        }
-    });
 }
