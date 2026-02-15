@@ -58,6 +58,7 @@ fn setup_player_controller(mut commands: Commands) {
                 walk_speed: 4.0,
                 enable_input: false,
                 key_fly: KeyCode::KeyL,
+                crouch_height: 2.7,
                 ..default()
             },
         ))
