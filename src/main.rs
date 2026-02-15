@@ -26,7 +26,9 @@ use bevy::{
 #[cfg(feature = "dev")]
 use bevy_egui::{EguiContexts, EguiPrimaryContextPass, egui};
 
+#[cfg(not(target_arch = "wasm32"))]
 use bevy_mod_mipmap_generator::{MipmapGeneratorPlugin, generate_mipmaps};
+
 use bgl2::{
     bevy_standard_material::{
         DrawsSortedByMaterial, init_std_shader_includes, sort_std_mat_by_material,
@@ -126,7 +128,6 @@ fn main() {
             FreeCameraPlugin,
             LogDiagnosticsPlugin::default(),
             FrameTimeDiagnosticsPlugin::default(),
-            MipmapGeneratorPlugin,
         ))
         .insert_state(SceneState::Init);
 
@@ -206,9 +207,13 @@ fn main() {
                 .chain()
                 .after(init_std_shader_includes),
         )
-        .add_systems(Update, generate_mipmaps::<StandardMaterial>)
         .add_systems(Update, window_control)
         .add_systems(Update, generate_tangets);
+
+    #[cfg(not(target_arch = "wasm32"))]
+    app.add_plugins(MipmapGeneratorPlugin)
+        .add_systems(Update, generate_mipmaps::<StandardMaterial>);
+
     app.run();
 }
 

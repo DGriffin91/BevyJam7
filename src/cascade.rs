@@ -190,7 +190,10 @@ impl CascadeInput {
     pub fn into_uniform(&self, asset_server: &AssetServer) -> CascadeUniform {
         let cascade_res = (self.ws_aabb.diagonal() / self.resolution).ceil();
         CascadeUniform {
-            probes_gi: asset_server.load(format!("bake/probes_gi_{}.png", self.name)),
+            probes_gi: asset_server.load_with_settings(
+                format!("bake/probes_gi_{}.png", self.name),
+                |settings: &mut ImageLoaderSettings| settings.sampler = sampler_linear_clamp(),
+            ),
             probes_id: asset_server.load_with_settings(
                 format!("bake/probes_id_{}.png", self.name),
                 |settings: &mut ImageLoaderSettings| settings.sampler = sampler_nearest_clamp(),
@@ -208,7 +211,10 @@ impl CascadeInput {
     pub fn into_view_uniform(&self, asset_server: &AssetServer) -> CascadeViewUniform {
         let cascade_res = (self.ws_aabb.diagonal() / self.resolution).ceil();
         CascadeViewUniform {
-            probes_gi: asset_server.load(format!("bake/probes_gi_{}.png", self.name)),
+            probes_gi: asset_server.load_with_settings(
+                format!("bake/probes_gi_{}.png", self.name),
+                |settings: &mut ImageLoaderSettings| settings.sampler = sampler_linear_clamp(),
+            ),
             probes_id: asset_server.load_with_settings(
                 format!("bake/probes_id_{}.png", self.name),
                 |settings: &mut ImageLoaderSettings| settings.sampler = sampler_nearest_clamp(),
@@ -257,6 +263,18 @@ pub fn sampler_nearest_clamp() -> ImageSampler {
         mag_filter: ImageFilterMode::Nearest,
         min_filter: ImageFilterMode::Nearest,
         mipmap_filter: ImageFilterMode::Nearest,
+        address_mode_u: ImageAddressMode::ClampToEdge,
+        address_mode_v: ImageAddressMode::ClampToEdge,
+        address_mode_w: ImageAddressMode::ClampToEdge,
+        ..Default::default()
+    })
+}
+
+pub fn sampler_linear_clamp() -> ImageSampler {
+    ImageSampler::Descriptor(ImageSamplerDescriptor {
+        mag_filter: ImageFilterMode::Linear,
+        min_filter: ImageFilterMode::Linear,
+        mipmap_filter: ImageFilterMode::Linear,
         address_mode_u: ImageAddressMode::ClampToEdge,
         address_mode_v: ImageAddressMode::ClampToEdge,
         address_mode_w: ImageAddressMode::ClampToEdge,
