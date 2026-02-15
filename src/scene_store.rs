@@ -307,7 +307,26 @@ pub fn count_box(
         }
     }
 
-    egui::Window::new("").show(contexts.ctx_mut().unwrap(), |ui| {
+    egui::Window::new("")
+        .anchor(egui::Align2::CENTER_TOP, egui::vec2(0.0, -35.0))
+        .title_bar(false)
+        .resizable(false)
+        .collapsible(false)
+        .frame(
+            egui::Frame::NONE
+                .fill(egui::Color32::TRANSPARENT)
+                .stroke(egui::Stroke::NONE),
+        )
+        .show(contexts.ctx_mut().unwrap(), |ui| {
+            ui.label(
+                egui::RichText::new(format!("{}", state.boxes_in_aisle))
+                    .size(64.0)
+                    .color(egui::Color32::from_rgb(255, 255, 255)),
+            );
+        });
+
+    #[cfg(feature = "dev")]
+    egui::Window::new("dev store").show(contexts.ctx_mut().unwrap(), |ui| {
         ui.label(format!("Boxes found by query {}", boxes.iter().len()));
         ui.label(format!("Boxes remaining: {}", state.boxes_in_aisle));
         ui.label(format!("Timer: {}", state.timer));

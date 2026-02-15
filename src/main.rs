@@ -69,9 +69,6 @@ pub struct Args {
     /// cpu render first cascade
     #[argh(switch)]
     probe_debug: bool,
-    /// temple test scene
-    #[argh(switch)]
-    temple: bool,
 }
 
 #[derive(States, Debug, Clone, PartialEq, Eq, Hash)]
@@ -200,7 +197,7 @@ fn main() {
         .add_plugins(ConvertCascadePlugin)
         .add_systems(
             Startup,
-            (setup, scene_underwater::load_underwater)
+            (setup, scene_store::load_store)
                 .chain()
                 .after(init_std_shader_includes),
         )
