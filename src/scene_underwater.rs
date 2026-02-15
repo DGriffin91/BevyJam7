@@ -129,6 +129,31 @@ pub fn load_underwater(
             ))
             .observe(proc_ship);
     }
+
+    commands
+        .spawn((
+            SceneRoot(asset_server.load(
+                GltfAssetLabel::Scene(0).from_asset("testing/models/underwater_collider_mesh.gltf"),
+            )),
+            UnderwaterScene,
+            SceneContents,
+        ))
+        .observe(cascade::blender_cascades)
+        .observe(
+            |scene_ready: On<SceneInstanceReady>,
+             mut commands: Commands,
+             children: Query<&Children>,
+             material_entites: Query<Entity, With<MeshMaterial3d<StandardMaterial>>>| {
+                for entity in children.iter_descendants(scene_ready.entity) {
+                    if let Ok(entity) = material_entites.get(entity) {
+                        commands
+                            .entity(entity)
+                            .remove::<MeshMaterial3d<StandardMaterial>>();
+                    }
+                }
+            },
+        )
+        .observe(tri_mesh_collider);
 }
 
 fn teleporter(mut commands: Commands, camera: Single<&GlobalTransform, With<Camera>>) {
