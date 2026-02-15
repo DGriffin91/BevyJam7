@@ -45,7 +45,7 @@ pub fn load_falling(
 ) {
     #[cfg(feature = "asset_baking")]
     {
-        rt_env_color.0 = Vec3A::ZERO;
+        rt_env_color.0 = vec3a(1.0, 1.5, 1.8);
     }
     next_state.set(SceneState::Falling);
     post_process.enable = false;
@@ -61,11 +61,11 @@ pub fn load_falling(
     player_ctrl.jump_speed = 4.0;
     player_ctrl.air_acceleration = 100.0;
 
-    sun.illuminance = 0.0;
+    sun.illuminance = 100000.0;
     sun.shadows_enabled = false;
 
-    fog.fog_color = vec4(0.0, 0.0, 0.0, 1.0);
-    fog.caustics = vec4(0.0, 0.0, 0.0, 1.0);
+    fog.fog_color = vec4(0.0, 0.0, 0.0, 0.0);
+    fog.caustics = vec4(0.0, 0.0, 0.0, 0.0);
 
     commands
         .spawn((
