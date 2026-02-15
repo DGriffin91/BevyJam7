@@ -63,12 +63,10 @@ impl GameLightingUniforms {
             },
             if phase.depth_only() {
                 ("RENDER_DEPTH_ONLY", "")
+            } else if shadow {
+                ("SAMPLE_SHADOW", "")
             } else {
-                if shadow {
-                    ("SAMPLE_SHADOW", "")
-                } else {
-                    ("", "")
-                }
+                ("", "")
             },
         ]
     }
