@@ -3,7 +3,7 @@ use std::f32::consts::PI;
 use avian3d::prelude::*;
 use bevy::{camera::primitives::Aabb, prelude::*, scene::SceneInstanceReady};
 use bevy_egui::{EguiContexts, EguiPrimaryContextPass, egui};
-use bevy_fps_controller::controller::LogicalPlayer;
+use bevy_fps_controller::controller::{FpsController, LogicalPlayer};
 
 #[derive(Resource, Default)]
 pub struct StoreSceneGameplayPlugin;
@@ -50,7 +50,7 @@ pub fn load_store(
     #[cfg(feature = "asset_baking")] mut rt_env_color: ResMut<
         light_volume_baker::rt_scene::RtEnvColor,
     >,
-    player: Single<(&mut Transform, &mut LinearVelocity), With<LogicalPlayer>>,
+    player: Single<(&mut Transform, &mut LinearVelocity, &mut FpsController), With<LogicalPlayer>>,
     mut post_process: ResMut<PostProcessSettings>,
     mut state: ResMut<PlayerStoreState>,
     mut next_state: ResMut<NextState<SceneState>>,
@@ -63,10 +63,14 @@ pub fn load_store(
     post_process.enable = false;
     *state = Default::default();
 
-    let (mut player_trans, mut player_vel) = player.into_inner();
+    let (mut player_trans, mut player_vel, mut player_ctrl) = player.into_inner();
     *player_trans =
         Transform::from_xyz(0.0, 3.0, 0.0).looking_at(Vec3::new(10.0, 0.0, 0.0), Vec3::Y);
     *player_vel = LinearVelocity::ZERO;
+    player_ctrl.walk_speed = 4.0;
+    player_ctrl.run_speed = 5.0;
+    player_ctrl.gravity = 23.0;
+    player_ctrl.jump_speed = 4.0;
 
     sun.illuminance = 0.0;
     sun.shadows_enabled = false;

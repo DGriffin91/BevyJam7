@@ -54,8 +54,8 @@ fn setup_player_controller(mut commands: Commands) {
             FpsController {
                 air_acceleration: 80.0,
                 jump_speed: 4.0,
-                run_speed: 7.0,
-                walk_speed: 4.5,
+                run_speed: 5.0,
+                walk_speed: 4.0,
                 enable_input: false,
                 key_fly: KeyCode::KeyL,
                 ..default()

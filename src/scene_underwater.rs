@@ -1,11 +1,12 @@
 use avian3d::prelude::*;
 use bevy::{math::NormedVectorSpace, prelude::*, scene::SceneInstanceReady};
-use bevy_fps_controller::controller::LogicalPlayer;
+use bevy_fps_controller::controller::{FpsController, LogicalPlayer};
 
 use crate::{
     SceneContents, SceneState,
     cascade::{self, SceneBakeName},
     despawn_scene_contents,
+    draw_debug::DebugLines,
     physics::tri_mesh_collider,
     post_process::PostProcessSettings,
     prepare_lighting::DynamicLight,
@@ -20,7 +21,9 @@ impl Plugin for UnderwaterGameplayPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PlayerUnderwaterState>().add_systems(
             Update,
-            (timed_events, move_airships).run_if(in_state(SceneState::Underwater)),
+            (timed_events, move_airships, move_searchlights)
+                .chain()
+                .run_if(in_state(SceneState::Underwater)),
         );
     }
 }
@@ -39,7 +42,7 @@ pub fn load_underwater(
     #[cfg(feature = "asset_baking")] mut rt_env_color: ResMut<
         light_volume_baker::rt_scene::RtEnvColor,
     >,
-    player: Single<(&mut Transform, &mut LinearVelocity), With<LogicalPlayer>>,
+    player: Single<(&mut Transform, &mut LinearVelocity, &mut FpsController), With<LogicalPlayer>>,
     mut post_process: ResMut<PostProcessSettings>,
     mut next_state: ResMut<NextState<SceneState>>,
     mut state: ResMut<PlayerUnderwaterState>,
@@ -54,10 +57,14 @@ pub fn load_underwater(
     *state = Default::default();
     clear.0 = Color::srgb(0.25, 0.3, 0.4);
 
-    let (mut player_trans, mut player_vel) = player.into_inner();
+    let (mut player_trans, mut player_vel, mut player_ctrl) = player.into_inner();
     *player_trans =
         Transform::from_xyz(0.0, 2.5, -1.5).looking_at(Vec3::new(0.0, 0.0, -10.0), Vec3::Y);
     *player_vel = LinearVelocity::ZERO;
+    player_ctrl.walk_speed = 2.0;
+    player_ctrl.run_speed = 2.5;
+    player_ctrl.gravity = 3.0;
+    player_ctrl.jump_speed = 2.0;
 
     sun.illuminance = 0.0;
     sun.shadows_enabled = false;
@@ -101,7 +108,7 @@ pub fn load_underwater(
                 Transform::from_translation(vec3(pos.x, pos.y + i as f32 * 10.0, pos.z)),
                 Airship {
                     destination: i,
-                    speed: i as f32 * 0.1 + 1.0,
+                    speed: i as f32 * 0.5 + 1.0,
                 },
             ))
             .observe(proc_ship);
@@ -155,12 +162,26 @@ fn move_airships(mut airships: Query<(&mut Transform, &mut Airship)>, time: Res<
         }
         let dest_vec = to.normalize();
         let desired = trans.looking_at(current_dest, Vec3::Y).rotation;
-        let turn = 0.15;
+        let turn = 0.1;
         trans.rotation = trans
             .rotation
             .slerp(desired, 1.0 - (-turn * time.delta_secs()).exp());
         let align = dest_vec.dot(*trans.forward()).clamp(0.0, 1.0);
-        trans.translation += dest_vec * (10.0 * align * ship.speed) * time.delta_secs();
+        trans.translation += dest_vec * (8.0 * align * ship.speed) * time.delta_secs();
+    }
+}
+
+fn move_searchlights(
+    mut search_lights: Query<(&ChildOf, &GlobalTransform, &mut Transform), With<Searchlight>>,
+    parents: Query<&GlobalTransform>,
+) {
+    let ws_aim_point = Vec3::ZERO;
+    for (parent, light_global, mut light_trans) in &mut search_lights {
+        let ws_light_pos = light_global.translation();
+        let ws_dir = (ws_aim_point - ws_light_pos).normalize();
+        let desired_global = Transform::IDENTITY.looking_to(ws_dir, Vec3::Y).rotation;
+        let parent_global_rot = parents.get(parent.0).unwrap().rotation();
+        light_trans.rotation = parent_global_rot.inverse() * desired_global;
     }
 }
 
@@ -169,35 +190,39 @@ struct Airship {
     destination: usize,
     speed: f32,
 }
+#[derive(Component, Clone, Debug, Default)]
+struct Searchlight;
 
-const SHIP_DESTINATIONS: [Vec3; 4] = [
-    vec3(-50.0, 40.0, -80.0),
-    vec3(-50.0, 40.0, -40.0),
-    vec3(50.0, 40.0, -80.0),
-    vec3(50.0, 40.0, -40.0),
+const SHIP_DESTINATIONS: [Vec3; 6] = [
+    vec3(-40.0, 40.0, -80.0),
+    vec3(-45.0, 40.0, -60.0),
+    vec3(50.0, 40.0, -120.0),
+    vec3(45.0, 40.0, -60.0),
+    vec3(-40.0, 40.0, -170.0),
+    vec3(-50.0, 40.0, -120.0),
 ];
 
 fn proc_ship(
     scene_ready: On<SceneInstanceReady>,
     children: Query<&Children>,
-    mut point_lights: Query<&mut PointLight>,
     mut spot_lights: Query<&mut SpotLight>,
     mut commands: Commands,
+    named: Query<(Entity, &Name)>,
 ) {
     for entity in children.iter_descendants(scene_ready.entity) {
-        if let Ok(mut point_light) = point_lights.get_mut(entity) {
-            point_light.shadows_enabled = true;
-            point_light.intensity *= 50.0;
-        } else if let Ok(mut spot_light) = spot_lights.get_mut(entity) {
+        if let Ok(mut spot_light) = spot_lights.get_mut(entity) {
             spot_light.shadows_enabled = true;
             spot_light.intensity *= 1000.0;
             spot_light.range = 10000.0;
-        } else {
-            continue;
+            let mut ecmds = commands.entity(entity);
+            ecmds.insert(DynamicLight);
+            #[cfg(feature = "asset_baking")]
+            ecmds.insert(light_volume_baker::rt_scene::NoBake);
         };
-        let mut ecmds = commands.entity(entity);
-        ecmds.insert(DynamicLight);
-        #[cfg(feature = "asset_baking")]
-        ecmds.insert(light_volume_baker::rt_scene::NoBake);
+        if let Ok((entity, name)) = named.get(entity) {
+            if name.contains("SEARCH_LIGHT") {
+                commands.entity(entity).insert(Searchlight);
+            }
+        }
     }
 }
