@@ -5,6 +5,7 @@ pub mod physics;
 pub mod player;
 pub mod post_process;
 pub mod prepare_lighting;
+pub mod scene_falling;
 pub mod scene_hallway;
 pub mod scene_store;
 pub mod scene_temple;
@@ -52,6 +53,7 @@ use crate::{
     player::PlayerControllerPlugin,
     post_process::{PostProcessPlugin, PostProcessSettings},
     prepare_lighting::PrepareLightingPlugin,
+    scene_falling::FallingGameplayPlugin,
     scene_hallway::HallwayGameplayPlugin,
     scene_store::StoreSceneGameplayPlugin,
     scene_underwater::UnderwaterGameplayPlugin,
@@ -78,6 +80,7 @@ pub enum SceneState {
     Store,
     Temple,
     Underwater,
+    Falling,
 }
 
 fn main() {
@@ -164,6 +167,7 @@ fn main() {
                 StoreSceneGameplayPlugin,
                 HallwayGameplayPlugin,
                 UnderwaterGameplayPlugin,
+                FallingGameplayPlugin,
             ))
             .add_systems(
                 PostUpdate,
@@ -253,6 +257,11 @@ fn dev_ui(
             use crate::scene_underwater::load_underwater;
             commands.run_system_cached(despawn_scene_contents);
             commands.run_system_cached(load_underwater);
+        }
+        if ui.button("Load Falling").clicked() {
+            use crate::scene_falling::load_falling;
+            commands.run_system_cached(despawn_scene_contents);
+            commands.run_system_cached(load_falling);
         }
     });
 }
