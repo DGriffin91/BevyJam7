@@ -64,6 +64,7 @@ pub fn load_underwater(
     player_ctrl.run_speed = 2.5;
     player_ctrl.gravity = 3.0;
     player_ctrl.jump_speed = 2.0;
+    player_ctrl.air_acceleration = 80.0;
 
     sun.illuminance = 0.0;
     sun.shadows_enabled = false;

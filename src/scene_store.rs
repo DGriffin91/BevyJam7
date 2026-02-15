@@ -71,6 +71,7 @@ pub fn load_store(
     player_ctrl.run_speed = 5.0;
     player_ctrl.gravity = 23.0;
     player_ctrl.jump_speed = 4.0;
+    player_ctrl.air_acceleration = 80.0;
 
     sun.illuminance = 0.0;
     sun.shadows_enabled = false;
