@@ -1907,7 +1907,7 @@ dependencies = [
 [[package]]
 name = "bgl2"
 version = "0.1.0"
-source = "git+https://github.com/DGriffin91/bgl2?branch=BevyJam7#a52f185c2cbb3a88af701e7d5a6d01c90975bb1a"
+source = "git+https://github.com/DGriffin91/bgl2?branch=BevyJam7#66f2894242dd4257ff6f95d273e6b34bc3bb6ac5"
 dependencies = [
  "anyhow",
  "bevy",
@@ -1939,7 +1939,7 @@ dependencies = [
  "bitflags 2.11.0",
  "cexpr",
  "clang-sys",
- "itertools 0.13.0",
+ "itertools 0.10.5",
  "proc-macro2",
  "quote",
  "regex",
@@ -6570,7 +6570,7 @@ checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 [[package]]
 name = "uniform_set_derive"
 version = "0.1.0"
-source = "git+https://github.com/DGriffin91/bgl2?branch=BevyJam7#a52f185c2cbb3a88af701e7d5a6d01c90975bb1a"
+source = "git+https://github.com/DGriffin91/bgl2?branch=BevyJam7#66f2894242dd4257ff6f95d273e6b34bc3bb6ac5"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
