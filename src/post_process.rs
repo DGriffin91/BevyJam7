@@ -65,7 +65,7 @@ fn render_post_process(
                     glow::STATIC_DRAW,
                 );
                 world.insert_resource(PostProcessBuffers {
-                    positions_vbo: positions_vbo.clone(),
+                    positions_vbo,
                 });
                 positions_vbo
             };
@@ -188,7 +188,7 @@ impl RenderTexture {
     ) {
         unsafe {
             let texture = ctx.gl.create_texture().unwrap();
-            images.add_texture_set_ref(texture, glow::TEXTURE_2D, &texture_ref);
+            images.add_texture_set_ref(texture, glow::TEXTURE_2D, texture_ref);
             ctx.gl.bind_texture(glow::TEXTURE_2D, Some(texture));
             ctx.gl.tex_parameter_i32(
                 glow::TEXTURE_2D,

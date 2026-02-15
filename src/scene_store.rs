@@ -139,7 +139,7 @@ pub fn load_store(
              mesh_entities: Query<Entity, With<Mesh3d>>| {
                 for entity in children.iter_descendants(scene_ready.entity) {
                     if let Ok(entity) = mesh_entities.get(entity) {
-                        commands.entity(entity).insert(MacBox::default());
+                        commands.entity(entity).insert(MacBox);
                     }
                 }
             },
@@ -257,7 +257,7 @@ pub fn throw_box(
 ) {
     if btn.just_pressed(MouseButton::Left) && state.has_box {
         state.has_box = false;
-        let camera = camera.clone();
+        let camera = **camera;
         for box_entity in &boxes {
             commands.entity(box_entity).despawn();
             commands
@@ -408,8 +408,8 @@ fn timed_events(
     let shelves_swap_start = 4.0;
     let spawn_big_box = shelves_swap_start + 20.0;
 
-    if state.timer > shelves_swap_start {
-        if !shelves.is_empty() {
+    if state.timer > shelves_swap_start
+        && !shelves.is_empty() {
             let shelf = asset_server
                 .load(GltfAssetLabel::Scene(0).from_asset("testing/models/store_mac_shelf.gltf"));
             for (shelf_entity, shelf_trans, shelf_index) in &shelves {
@@ -417,7 +417,7 @@ fn timed_events(
                     commands.entity(shelf_entity).despawn();
                     commands
                         .spawn((
-                            shelf_trans.clone(),
+                            *shelf_trans,
                             SceneRoot(shelf.clone()),
                             StoreScene,
                             SceneContents,
@@ -427,7 +427,6 @@ fn timed_events(
                 }
             }
         }
-    }
 
     if !state.big_box_has_been_spawned && state.timer > spawn_big_box {
         state.big_box_has_been_spawned = true;

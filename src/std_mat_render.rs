@@ -295,7 +295,7 @@ pub fn standard_material_render(
 
             if let Some(ref loc) = reflect_bool_location {
                 (draw.read_reflect && phase.read_reflect() && reflect_uniforms.is_some())
-                    .load(&ctx.gl, &loc)
+                    .load(&ctx.gl, loc)
             }
 
             // Only re-bind if the material has changed.
@@ -321,10 +321,9 @@ pub fn generate_tangets(
             AssetEvent::LoadedWithDependencies { id } | AssetEvent::Added { id } => id,
             _ => continue,
         }; // | AssetEvent::Modified { id }
-        if let Some(mesh) = bevy_meshes.get_mut(*mesh_h) {
-            if mesh.attribute(Mesh::ATTRIBUTE_TANGENT).is_none() {
+        if let Some(mesh) = bevy_meshes.get_mut(*mesh_h)
+            && mesh.attribute(Mesh::ATTRIBUTE_TANGENT).is_none() {
                 mesh.generate_tangents().unwrap();
             }
-        }
     }
 }

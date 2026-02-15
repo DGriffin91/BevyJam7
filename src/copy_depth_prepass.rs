@@ -22,12 +22,12 @@ pub fn copy_depth_prepass(
     } else {
         just_init = true;
         let texture_ref = TextureRef::new();
-        let prepass = PrepassTexture {
+        
+        PrepassTexture {
             texture: texture_ref.clone(),
             width,
             height,
-        };
-        prepass
+        }
     };
 
     if just_init || prepass.width != width || prepass.height != height {
@@ -97,7 +97,7 @@ impl PrepassTexture {
     ) {
         unsafe {
             let texture = ctx.gl.create_texture().unwrap();
-            images.add_texture_set_ref(texture, glow::TEXTURE_2D, &texture_ref);
+            images.add_texture_set_ref(texture, glow::TEXTURE_2D, texture_ref);
             ctx.gl.bind_texture(glow::TEXTURE_2D, Some(texture));
             ctx.gl.tex_parameter_i32(
                 glow::TEXTURE_2D,

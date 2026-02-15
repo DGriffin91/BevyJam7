@@ -142,7 +142,7 @@ pub fn load_hallway(
              mesh_entities: Query<Entity, With<Mesh3d>>| {
                 for entity in children.iter_descendants(scene_ready.entity) {
                     if let Ok(entity) = mesh_entities.get(entity) {
-                        commands.entity(entity).insert(MacBox::default());
+                        commands.entity(entity).insert(MacBox);
                     }
                 }
             },
@@ -272,7 +272,7 @@ pub fn throw_box(
 ) {
     if btn.just_pressed(MouseButton::Left) && state.has_box {
         state.has_box = false;
-        let camera = camera.clone();
+        let camera = **camera;
         for box_entity in &boxes {
             commands.entity(box_entity).despawn();
             commands

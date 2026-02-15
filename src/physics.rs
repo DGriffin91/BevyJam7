@@ -75,7 +75,7 @@ pub fn trimesh_dyn_collider_scene(
         if let Ok((_entity, mesh)) = mesh_entities.get(entity) {
             let mesh = meshes.get(mesh).unwrap();
             if let Some(combined_mesh) = &mut combined_mesh {
-                mesh_append(combined_mesh, &mesh).unwrap();
+                mesh_append(combined_mesh, mesh).unwrap();
             } else {
                 combined_mesh = Some(mesh.clone());
             }

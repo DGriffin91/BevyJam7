@@ -263,13 +263,12 @@ fn proc_ship(
                 #[cfg(feature = "asset_baking")]
                 ecmds.insert(light_volume_baker::rt_scene::NoBake);
             };
-            if let Ok((entity, name)) = named.get(entity) {
-                if name.contains("SEARCH_LIGHT") {
+            if let Ok((entity, name)) = named.get(entity)
+                && name.contains("SEARCH_LIGHT") {
                     commands.entity(entity).insert(Searchlight {
                         index: airship.index,
                     });
                 }
-            }
         }
     }
 }
@@ -283,5 +282,5 @@ fn point_in_cone(p: Vec3, origin: Vec3, normal: Vec3, opening: f32) -> bool {
     let dir = v / v_len;
     let half_angle_rad = opening * 0.5;
     let cos_half = half_angle_rad.cos();
-    return dir.dot(normal) >= cos_half;
+    dir.dot(normal) >= cos_half
 }

@@ -42,8 +42,8 @@ pub fn blender_cascades(
         .unwrap_or_default()
         .0;
     for entity in children.iter_descendants(scene_ready.entity) {
-        if let Ok((entity, name, trans, extras)) = gltf_extras.get(entity) {
-            if name.contains("BAKE") {
+        if let Ok((entity, name, trans, extras)) = gltf_extras.get(entity)
+            && name.contains("BAKE") {
                 let extras: ProbeBakeExtras = serde_json::from_str(&extras.value).unwrap();
                 if let Some(bake_res) = extras.probe_bake_res {
                     let scale: Vec3A = trans.scale.into();
@@ -65,7 +65,6 @@ pub fn blender_cascades(
                     ecmds.remove::<CascadeData>();
                 }
             }
-        }
     }
 }
 
