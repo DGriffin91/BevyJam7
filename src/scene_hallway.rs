@@ -9,6 +9,7 @@ use crate::{
     draw_debug::DebugLines,
     physics::{convex_hull_dyn_collider_indv, tri_mesh_collider},
     post_process::PostProcessSettings,
+    scene_falling::load_falling,
     scene_store::{HeldBox, MacBox, ThrownBox},
     std_mat_render::Fog,
 };
@@ -207,6 +208,10 @@ fn ghost_movement(
     if ghost.translation.distance(camera_pos) < 1.5 {
         commands.run_system_cached(despawn_scene_contents);
         commands.run_system_cached(load_hallway);
+    }
+    if camera_pos.z < -20.0 {
+        commands.run_system_cached(despawn_scene_contents);
+        commands.run_system_cached(load_falling);
     }
 }
 
