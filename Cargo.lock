@@ -1908,6 +1908,7 @@ dependencies = [
 [[package]]
 name = "bgl2"
 version = "0.1.0"
+source = "git+https://github.com/DGriffin91/bgl2#544b5e65d7934675b1e708d67732ff63a63375ba"
 dependencies = [
  "anyhow",
  "bevy",
@@ -6561,6 +6562,7 @@ checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 [[package]]
 name = "uniform_set_derive"
 version = "0.1.0"
+source = "git+https://github.com/DGriffin91/bgl2#544b5e65d7934675b1e708d67732ff63a63375ba"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",

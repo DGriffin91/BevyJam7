@@ -42,8 +42,8 @@ itertools = "0.14"
 wgpu-types = "27" #Needed for bevy interop types since bevy doesn't re-export everything
 bevy_mod_mesh_tools = { git = "https://github.com/DGriffin91/bevy_mod_mesh_tools" }
 
-uniform_set_derive = { path = "../../../../opengl/bevy_opengl/uniform_set_derive" }
-bgl2 = { path = "../../../../opengl/bevy_opengl" }
+uniform_set_derive = { git = "https://github.com/DGriffin91/bgl2" }
+bgl2 = { git = "https://github.com/DGriffin91/bgl2" }
 glow = "0.16"
 bytemuck = "1.24"
 
