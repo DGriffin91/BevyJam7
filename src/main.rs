@@ -1,6 +1,7 @@
 pub mod cascade;
 pub mod copy_depth_prepass;
 pub mod draw_debug;
+pub mod menu;
 pub mod physics;
 pub mod player;
 pub mod post_process;
@@ -21,7 +22,6 @@ use bevy::{
     diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
     prelude::*,
     render::{RenderPlugin, settings::WgpuSettings},
-    window::WindowMode,
     winit::WinitSettings,
 };
 #[cfg(feature = "dev")]
@@ -53,6 +53,7 @@ use light_volume_baker::{
 use crate::{
     cascade::ConvertCascadePlugin,
     draw_debug::DrawDebugPlugin,
+    menu::MenuPlugin,
     player::PlayerControllerPlugin,
     post_process::{PostProcessPlugin, PostProcessSettings},
     prepare_lighting::PrepareLightingPlugin,
@@ -114,7 +115,7 @@ fn main() {
                 })
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        present_mode: bevy::window::PresentMode::Immediate,
+                        present_mode: bevy::window::PresentMode::AutoVsync,
                         ..default()
                     }),
                     ..default()
@@ -171,6 +172,7 @@ fn main() {
                 HallwayGameplayPlugin,
                 UnderwaterGameplayPlugin,
                 FallingGameplayPlugin,
+                MenuPlugin,
             ))
             .add_systems(
                 PostUpdate,
@@ -209,7 +211,6 @@ fn main() {
                 .chain()
                 .after(init_std_shader_includes),
         )
-        .add_systems(Update, window_control)
         .add_systems(Update, generate_tangets);
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -288,19 +289,6 @@ fn setup(mut commands: Commands) {
         },
         ShadowBounds::cube(100.0),
     ));
-}
-
-fn window_control(keyboard_input: Res<ButtonInput<KeyCode>>, mut window: Single<&mut Window>) {
-    if keyboard_input.just_pressed(KeyCode::F11) || keyboard_input.just_pressed(KeyCode::KeyF) {
-        if window.mode == WindowMode::Windowed {
-            window.mode = WindowMode::BorderlessFullscreen(MonitorSelection::Current);
-        } else {
-            window.mode = WindowMode::Windowed;
-        }
-    }
-    if keyboard_input.just_pressed(KeyCode::Escape) || keyboard_input.just_pressed(KeyCode::Tab) {
-        window.mode = WindowMode::Windowed;
-    }
 }
 
 #[cfg(feature = "dev")]
