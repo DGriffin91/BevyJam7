@@ -35,10 +35,7 @@ pub fn menu_ui(
     let Ok(context) = contexts.ctx_mut() else {
         return;
     };
-    let loading = match state.get() {
-        SceneState::Loading => true,
-        _ => false,
-    };
+    let loading = matches!(state.get(), SceneState::Loading);
     egui::Window::new("SETTINGS")
         .fixed_pos(egui::Pos2::ZERO)
         .title_bar(false)
