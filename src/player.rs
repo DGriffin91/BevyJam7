@@ -8,6 +8,7 @@ use bevy::{
 };
 use bevy_egui::{EguiContexts, EguiPrimaryContextPass};
 use bevy_fps_controller::controller::*;
+use bevy_seedling::spatial::SpatialListener2D;
 
 #[derive(Resource, Default)]
 pub struct PlayerControllerPlugin;
@@ -82,6 +83,7 @@ fn setup_player_controller(mut commands: Commands) {
         }),
         DepthPrepass,
         RenderPlayer { logical_entity },
+        SpatialListener2D,
     ));
 }
 

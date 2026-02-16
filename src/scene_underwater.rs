@@ -4,6 +4,7 @@ use bevy_fps_controller::controller::{FpsController, LogicalPlayer};
 
 use crate::{
     SceneContents, SceneState,
+    assets::SceneAssets,
     cascade::{self, SceneBakeName},
     despawn_scene_contents,
     physics::tri_mesh_collider,
@@ -35,7 +36,6 @@ pub struct UnderwaterScene;
 
 pub fn load_underwater(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
     mut fog: ResMut<Fog>,
     mut sun: Single<&mut DirectionalLight>,
     #[cfg(feature = "asset_baking")] mut rt_env_color: ResMut<
@@ -46,6 +46,7 @@ pub fn load_underwater(
     mut next_state: ResMut<NextState<SceneState>>,
     mut state: ResMut<PlayerUnderwaterState>,
     mut clear: ResMut<ClearColor>,
+    assets: Res<SceneAssets>,
 ) {
     #[cfg(feature = "asset_baking")]
     {
@@ -74,10 +75,7 @@ pub fn load_underwater(
 
     commands
         .spawn((
-            SceneRoot(
-                asset_server
-                    .load(GltfAssetLabel::Scene(0).from_asset("testing/models/Underwater.gltf")),
-            ),
+            SceneRoot(assets.underwater.clone()),
             UnderwaterScene,
             SceneContents,
             SceneBakeName(String::from("Underwater")),
@@ -87,10 +85,7 @@ pub fn load_underwater(
 
     #[allow(unused)]
     let mut ecmds = commands.spawn((
-        SceneRoot(
-            asset_server
-                .load(GltfAssetLabel::Scene(0).from_asset("testing/models/underwater_skybox.gltf")),
-        ),
+        SceneRoot(assets.underwater_skybox.clone()),
         UnderwaterScene,
         SceneContents,
         SceneBakeName(String::from("Underwater")),
@@ -112,8 +107,7 @@ pub fn load_underwater(
         },
     );
 
-    let ship_scene = asset_server
-        .load(GltfAssetLabel::Scene(0).from_asset("testing/models/underwater_airship.gltf"));
+    let ship_scene = &assets.underwater_airship;
     for i in 0..3 {
         let pos = SHIP_DESTINATIONS[i];
         commands
@@ -133,9 +127,7 @@ pub fn load_underwater(
 
     commands
         .spawn((
-            SceneRoot(asset_server.load(
-                GltfAssetLabel::Scene(0).from_asset("testing/models/underwater_collider_mesh.gltf"),
-            )),
+            SceneRoot(assets.underwater_collider_mesh.clone()),
             UnderwaterScene,
             SceneContents,
         ))

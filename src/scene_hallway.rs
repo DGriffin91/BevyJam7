@@ -4,6 +4,7 @@ use bevy_fps_controller::controller::{FpsController, LogicalPlayer};
 
 use crate::{
     SceneContents, SceneState,
+    assets::SceneAssets,
     cascade::{self, SceneBakeName},
     despawn_scene_contents,
     draw_debug::DebugLines,
@@ -37,7 +38,6 @@ pub struct HallwayScene;
 
 pub fn load_hallway(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
     mut fog: ResMut<Fog>,
     mut sun: Single<&mut DirectionalLight>,
     #[cfg(feature = "asset_baking")] mut rt_env_color: ResMut<
@@ -47,6 +47,7 @@ pub fn load_hallway(
     mut post_process: ResMut<PostProcessSettings>,
     mut next_state: ResMut<NextState<SceneState>>,
     mut state: ResMut<PlayerHallwayState>,
+    assets: Res<SceneAssets>,
 ) {
     #[cfg(feature = "asset_baking")]
     {
@@ -74,10 +75,7 @@ pub fn load_hallway(
 
     commands
         .spawn((
-            SceneRoot(
-                asset_server
-                    .load(GltfAssetLabel::Scene(0).from_asset("testing/models/Hallway.gltf")),
-            ),
+            SceneRoot(assets.hallway.clone()),
             HallwayScene,
             SceneContents,
             SceneBakeName(String::from("Hallway")),
@@ -100,9 +98,7 @@ pub fn load_hallway(
 
     commands
         .spawn((
-            SceneRoot(asset_server.load(
-                GltfAssetLabel::Scene(0).from_asset("testing/models/hallway_collider_mesh.gltf"),
-            )),
+            SceneRoot(assets.hallway_collider_mesh.clone()),
             HallwayScene,
             SceneContents,
         ))
@@ -125,11 +121,7 @@ pub fn load_hallway(
 
     commands
         .spawn((
-            SceneRoot(
-                asset_server.load(
-                    GltfAssetLabel::Scene(0).from_asset("testing/models/store_single_box.gltf"),
-                ),
-            ),
+            SceneRoot(assets.store_single_box.clone()),
             HallwayScene,
             SceneContents,
             Transform::from_translation(vec3(1.0, 0.2, -10.0)),
@@ -149,10 +141,7 @@ pub fn load_hallway(
         );
 
     commands.spawn((
-        SceneRoot(
-            asset_server
-                .load(GltfAssetLabel::Scene(0).from_asset("testing/models/hallway_ghost.gltf")),
-        ),
+        SceneRoot(assets.hallway_ghost.clone()),
         HallwayScene,
         SceneContents,
         Transform::from_xyz(0.0, 1.666, -19.05),
@@ -225,7 +214,7 @@ pub fn pickup_box(
         (With<MacBox>, Without<LogicalPlayer>),
     >,
     mut state: ResMut<PlayerHallwayState>,
-    asset_server: Res<AssetServer>,
+    assets: Res<SceneAssets>,
 ) {
     let (_player_entity, player_trans) = player.into_inner();
     let (camera_entity, _camera_trans) = camera.into_inner();
@@ -242,12 +231,7 @@ pub fn pickup_box(
 
                 commands.entity(camera_entity).with_children(|parent| {
                     parent.spawn((
-                        SceneRoot(
-                            asset_server.load(
-                                GltfAssetLabel::Scene(0)
-                                    .from_asset("testing/models/store_single_box.gltf"),
-                            ),
-                        ),
+                        SceneRoot(assets.store_single_box.clone()),
                         HallwayScene,
                         SceneContents,
                         Transform::from_translation(vec3(0.0, -0.3, -0.6)),
@@ -266,9 +250,9 @@ pub fn throw_box(
     camera: Single<&GlobalTransform, With<Camera>>,
     boxes: Query<Entity, With<HeldBox>>,
     mut state: ResMut<PlayerHallwayState>,
-    asset_server: Res<AssetServer>,
     btn: Res<ButtonInput<MouseButton>>,
     #[allow(unused)] mut debug: ResMut<DebugLines>,
+    assets: Res<SceneAssets>,
 ) {
     if btn.just_pressed(MouseButton::Left) && state.has_box {
         state.has_box = false;
@@ -277,9 +261,7 @@ pub fn throw_box(
             commands.entity(box_entity).despawn();
             commands
                 .spawn((
-                    SceneRoot(asset_server.load(
-                        GltfAssetLabel::Scene(0).from_asset("testing/models/store_single_box.gltf"),
-                    )),
+                    SceneRoot(assets.store_single_box.clone()),
                     HallwayScene,
                     SceneContents,
                     Transform::from_translation(camera.translation() + *camera.forward()),

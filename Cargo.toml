@@ -26,6 +26,9 @@ rayon = "1.11.0"
 softbuffer = "0.4.8"
 bevy_fps_controller = { git = "https://github.com/qhdwight/bevy_fps_controller", features = ["avian"], rev = "d853fdc20d7abf82b33f12969b1fd3ebbb447afb" }
 avian3d = { version = "0.5.0" }
+bevy_seedling = "0.7.0"
+bevy_asset_loader = "0.25.0"
+iyes_progress = "0.16.0"
 
 wasm-bindgen = { version = "0.2" }
 serde = { version = "1.0", features = ["derive"] }

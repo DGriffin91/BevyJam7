@@ -30,6 +30,7 @@ impl Plugin for StoreSceneGameplayPlugin {
 
 use crate::{
     SceneContents, SceneState,
+    assets::SceneAssets,
     cascade::{self, SceneBakeName},
     despawn_scene_contents,
     draw_debug::DebugLines,
@@ -44,7 +45,6 @@ use crate::{
 
 pub fn load_store(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
     mut fog: ResMut<Fog>,
     mut sun: Single<&mut DirectionalLight>,
     #[cfg(feature = "asset_baking")] mut rt_env_color: ResMut<
@@ -54,6 +54,7 @@ pub fn load_store(
     mut post_process: ResMut<PostProcessSettings>,
     mut state: ResMut<PlayerStoreState>,
     mut next_state: ResMut<NextState<SceneState>>,
+    assets: Res<SceneAssets>,
 ) {
     #[cfg(feature = "asset_baking")]
     {
@@ -80,8 +81,7 @@ pub fn load_store(
     fog.fog_color = Vec4::ZERO;
     fog.caustics = Vec4::ZERO;
 
-    let shelf =
-        asset_server.load(GltfAssetLabel::Scene(0).from_asset("testing/models/store_shelf.gltf"));
+    let shelf = &assets.store_shelf;
 
     let max = 39;
     for i in 0..max {
@@ -111,11 +111,7 @@ pub fn load_store(
             .spawn((
                 Transform::from_xyz(i as f32 * -8.0, 1.0, 0.0)
                     .with_rotation(Quat::from_rotation_y(i as f32)),
-                SceneRoot(
-                    asset_server.load(
-                        GltfAssetLabel::Scene(0).from_asset("testing/models/store_cart.gltf"),
-                    ),
-                ),
+                SceneRoot(assets.store_cart.clone()),
                 StoreScene,
                 SceneContents,
             ))
@@ -124,9 +120,7 @@ pub fn load_store(
 
     commands
         .spawn((
-            SceneRoot(asset_server.load(
-                GltfAssetLabel::Scene(0).from_asset("testing/models/store_boxes_on_floor.gltf"),
-            )),
+            SceneRoot(assets.store_boxes_on_floor.clone()),
             StoreScene,
             SceneContents,
             Transform::from_xyz(0.0, 0.2, 0.0),
@@ -147,9 +141,7 @@ pub fn load_store(
 
     commands
         .spawn((
-            SceneRoot(
-                asset_server.load(GltfAssetLabel::Scene(0).from_asset("testing/models/Store.gltf")),
-            ),
+            SceneRoot(assets.store.clone()),
             StoreScene,
             SceneContents,
             SceneBakeName(String::from("Store")),
@@ -211,7 +203,7 @@ pub fn pickup_box(
         (With<MacBox>, Without<LogicalPlayer>),
     >,
     mut state: ResMut<PlayerStoreState>,
-    asset_server: Res<AssetServer>,
+    assets: Res<SceneAssets>,
 ) {
     let (_player_entity, player_trans) = player.into_inner();
     let (camera_entity, _camera_trans) = camera.into_inner();
@@ -229,12 +221,7 @@ pub fn pickup_box(
 
                 commands.entity(camera_entity).with_children(|parent| {
                     parent.spawn((
-                        SceneRoot(
-                            asset_server.load(
-                                GltfAssetLabel::Scene(0)
-                                    .from_asset("testing/models/store_single_box.gltf"),
-                            ),
-                        ),
+                        SceneRoot(assets.store_single_box.clone()),
                         StoreScene,
                         SceneContents,
                         Transform::from_translation(vec3(0.0, -0.3, -0.6)),
@@ -253,9 +240,9 @@ pub fn throw_box(
     camera: Single<&GlobalTransform, With<Camera>>,
     boxes: Query<Entity, With<HeldBox>>,
     mut state: ResMut<PlayerStoreState>,
-    asset_server: Res<AssetServer>,
     btn: Res<ButtonInput<MouseButton>>,
     #[allow(unused)] mut debug: ResMut<DebugLines>,
+    assets: Res<SceneAssets>,
 ) {
     if btn.just_pressed(MouseButton::Left) && state.has_box {
         state.has_box = false;
@@ -264,9 +251,7 @@ pub fn throw_box(
             commands.entity(box_entity).despawn();
             commands
                 .spawn((
-                    SceneRoot(asset_server.load(
-                        GltfAssetLabel::Scene(0).from_asset("testing/models/store_single_box.gltf"),
-                    )),
+                    SceneRoot(assets.store_single_box.clone()),
                     StoreScene,
                     SceneContents,
                     Transform::from_translation(camera.translation() + *camera.forward()),
@@ -395,8 +380,9 @@ fn timed_events(
     mut commands: Commands,
     time: Res<Time>,
     shelves: Query<(Entity, &Transform, &StoreShelf)>,
-    asset_server: Res<AssetServer>,
     mut graphs: ResMut<Assets<AnimationGraph>>,
+    assets: Res<SceneAssets>,
+    asset_server: Res<AssetServer>,
 ) {
     if state.boxes_in_aisle < 25 {
         state.timer += time.delta_secs();
@@ -411,8 +397,7 @@ fn timed_events(
     let spawn_big_box = shelves_swap_start + 20.0;
 
     if state.timer > shelves_swap_start && !shelves.is_empty() {
-        let shelf = asset_server
-            .load(GltfAssetLabel::Scene(0).from_asset("testing/models/store_mac_shelf.gltf"));
+        let shelf = &assets.store_mac_shelf;
         for (shelf_entity, shelf_trans, shelf_index) in &shelves {
             if (state.timer - shelves_swap_start) * 3.0 > shelf_index.0 as f32 {
                 commands.entity(shelf_entity).despawn();
@@ -431,19 +416,16 @@ fn timed_events(
 
     if !state.big_box_has_been_spawned && state.timer > spawn_big_box {
         state.big_box_has_been_spawned = true;
-        let (graph, index) =
-            AnimationGraph::from_clip(asset_server.load(
-                GltfAssetLabel::Animation(0).from_asset("testing/models/store_mac_anim.gltf"),
-            ));
+        let (graph, index) = AnimationGraph::from_clip(
+            asset_server
+                .load(GltfAssetLabel::Animation(0).from_asset("models/store_mac_anim.gltf")),
+        );
         let graph_handle = graphs.add(graph);
         let animation_to_play = AnimationToPlay {
             graph_handle,
             index,
         };
-        let mesh_scene = SceneRoot(
-            asset_server
-                .load(GltfAssetLabel::Scene(0).from_asset("testing/models/store_mac_anim.gltf")),
-        );
+        let mesh_scene = SceneRoot(assets.store_mac_anim.clone());
         commands
             .spawn((
                 animation_to_play,

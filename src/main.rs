@@ -1,3 +1,4 @@
+pub mod assets;
 pub mod cascade;
 pub mod copy_depth_prepass;
 pub mod draw_debug;
@@ -24,12 +25,16 @@ use bevy::{
     render::{RenderPlugin, settings::WgpuSettings},
     winit::WinitSettings,
 };
+use bevy_asset_loader::loading_state::{
+    LoadingState, LoadingStateAppExt, config::ConfigureLoadingState,
+};
 #[cfg(feature = "dev")]
 use bevy_egui::{EguiContexts, EguiPrimaryContextPass, egui};
 
 #[cfg(not(target_arch = "wasm32"))]
 use bevy_mod_mipmap_generator::{MipmapGeneratorPlugin, generate_mipmaps};
 
+use bevy_seedling::SeedlingPlugin;
 use bgl2::{
     bevy_standard_material::{
         DrawsSortedByMaterial, init_std_shader_includes, sort_std_mat_by_material,
@@ -40,6 +45,7 @@ use bgl2::{
     render::{OpenGLRenderPlugins, RenderSet, register_prepare_system},
 };
 use bgl2::{egui_plugin::GlowEguiPlugin, render::register_render_system};
+use iyes_progress::ProgressPlugin;
 
 #[cfg(feature = "asset_baking")]
 use light_volume_baker::{
@@ -51,6 +57,7 @@ use light_volume_baker::{
 };
 
 use crate::{
+    assets::SceneAssets,
     cascade::ConvertCascadePlugin,
     draw_debug::DrawDebugPlugin,
     menu::MenuPlugin,
@@ -77,9 +84,11 @@ pub struct Args {
     probe_debug: bool,
 }
 
-#[derive(States, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Default, States, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SceneState {
-    Init,
+    #[default]
+    Loading,
+    Loaded,
     Hallway,
     Store,
     Temple,
@@ -132,7 +141,7 @@ fn main() {
             LogDiagnosticsPlugin::default(),
             FrameTimeDiagnosticsPlugin::default(),
         ))
-        .insert_state(SceneState::Init);
+        .init_state::<SceneState>();
 
     #[cfg(feature = "asset_baking")]
     {
@@ -160,7 +169,13 @@ fn main() {
     }
 
     if bgl2_render {
-        app.init_resource::<DrawsSortedByMaterial>()
+        app.add_plugins(ProgressPlugin::<SceneState>::new())
+            .add_loading_state(
+                LoadingState::new(SceneState::Loading)
+                    .continue_to_state(SceneState::Loaded)
+                    .load_collection::<SceneAssets>(),
+            )
+            .init_resource::<DrawsSortedByMaterial>()
             .add_plugins((
                 GlowEguiPlugin,
                 OpenGLRenderPlugins,
@@ -173,6 +188,7 @@ fn main() {
                 UnderwaterGameplayPlugin,
                 FallingGameplayPlugin,
                 MenuPlugin,
+                SeedlingPlugin::default(),
             ))
             .add_systems(
                 PostUpdate,
@@ -181,8 +197,7 @@ fn main() {
             .add_systems(
                 Startup,
                 init_std_shader_includes.in_set(RenderSet::Pipeline),
-            )
-            .add_systems(Startup, pre_load_some_assets);
+            );
         register_prepare_system(app.world_mut(), standard_material_prepare_view);
         //register_prepare_system(app.world_mut(), copy_depth_prepass);
         register_render_system::<StandardMaterial, _>(
@@ -206,10 +221,8 @@ fn main() {
     app.init_resource::<Fog>()
         .add_plugins(ConvertCascadePlugin)
         .add_systems(
-            Startup,
-            (setup, scene_store::load_store)
-                .chain()
-                .after(init_std_shader_includes),
+            OnEnter(SceneState::Loaded),
+            (setup, scene_store::load_store).chain(),
         )
         .add_systems(Update, generate_tangets);
 
@@ -335,31 +348,5 @@ pub fn despawn_scene_contents(
 ) {
     for entity in &scene_contents {
         commands.entity(entity).despawn();
-    }
-}
-
-fn pre_load_some_assets(asset_server: Res<AssetServer>, mut scenes: Local<Vec<Handle<Scene>>>) {
-    // Usually I use bevy_asset_loader but I ran out of time and forgot at the start
-    for path in [
-        "testing/models/Falling.gltf",
-        "testing/models/Hallway.gltf",
-        "testing/models/hallway_collider_mesh.gltf",
-        "testing/models/store_single_box.gltf",
-        "testing/models/hallway_ghost.gltf",
-        "testing/models/store_single_box.gltf",
-        "testing/models/store_shelf.gltf",
-        "testing/models/store_cart.gltf",
-        "testing/models/store_boxes_on_floor.gltf",
-        "testing/models/Store.gltf",
-        "testing/models/store_single_box.gltf",
-        "testing/models/store_mac_shelf.gltf",
-        "testing/models/store_mac_anim.gltf",
-        "testing/models/store_mac_anim.gltf",
-        "testing/models/Underwater.gltf",
-        "testing/models/underwater_skybox.gltf",
-        "testing/models/underwater_airship.gltf",
-        "testing/models/underwater_collider_mesh.gltf",
-    ] {
-        scenes.push(asset_server.load(GltfAssetLabel::Scene(0).from_asset(path)));
     }
 }

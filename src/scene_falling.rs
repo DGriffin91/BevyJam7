@@ -4,6 +4,7 @@ use bevy_fps_controller::controller::{FpsController, LogicalPlayer};
 
 use crate::{
     SceneContents, SceneState,
+    assets::SceneAssets,
     cascade::{self, SceneBakeName},
     despawn_scene_contents,
     physics::tri_mesh_collider,
@@ -32,7 +33,6 @@ pub struct FallingScene;
 
 pub fn load_falling(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
     mut fog: ResMut<Fog>,
     mut sun: Single<&mut DirectionalLight>,
     #[cfg(feature = "asset_baking")] mut rt_env_color: ResMut<
@@ -42,6 +42,7 @@ pub fn load_falling(
     mut post_process: ResMut<PostProcessSettings>,
     mut next_state: ResMut<NextState<SceneState>>,
     mut state: ResMut<PlayerFallingState>,
+    assets: Res<SceneAssets>,
 ) {
     #[cfg(feature = "asset_baking")]
     {
@@ -69,10 +70,7 @@ pub fn load_falling(
 
     commands
         .spawn((
-            SceneRoot(
-                asset_server
-                    .load(GltfAssetLabel::Scene(0).from_asset("testing/models/Falling.gltf")),
-            ),
+            SceneRoot(assets.falling.clone()),
             FallingScene,
             SceneContents,
             SceneBakeName(String::from("Falling")),

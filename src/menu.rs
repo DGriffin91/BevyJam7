@@ -5,7 +5,7 @@ use bevy_egui::{
 };
 use bevy_fps_controller::controller::FpsController;
 
-use crate::{despawn_scene_contents, scene_store::load_store};
+use crate::{SceneState, despawn_scene_contents, scene_store::load_store};
 
 pub struct MenuPlugin;
 impl Plugin for MenuPlugin {
@@ -21,6 +21,7 @@ pub fn menu_ui(
     window: Single<&mut Window>,
     mut contexts: EguiContexts,
     mut app_exit: MessageWriter<AppExit>,
+    state: Res<State<SceneState>>,
 ) {
     let mut window = window.into_inner();
     let mut fps_controller = fps_controller.into_inner();
@@ -34,6 +35,10 @@ pub fn menu_ui(
     let Ok(context) = contexts.ctx_mut() else {
         return;
     };
+    let loading = match state.get() {
+        SceneState::Loading => true,
+        _ => false,
+    };
     egui::Window::new("SETTINGS")
         .fixed_pos(egui::Pos2::ZERO)
         .title_bar(false)
@@ -41,17 +46,33 @@ pub fn menu_ui(
         .movable(false)
         .collapsible(false)
         .fixed_size(egui::vec2(width, height))
-        .frame(egui::Frame::window(&context.style()).corner_radius(0.0))
+        .frame(
+            egui::Frame::NONE
+                .fill(egui::Color32::from_rgb(12, 12, 12))
+                .stroke(egui::Stroke::NONE)
+                .corner_radius(0.0)
+                .inner_margin(16.0)
+                .outer_margin(0.0),
+        )
         .show(context, |ui| {
             let style = ui.style_mut();
-            let font = egui::FontId::new(18.0, egui::FontFamily::Proportional);
+            let font = egui::FontId::new(
+                if loading { 20.0 } else { 18.0 },
+                egui::FontFamily::Proportional,
+            );
             style.text_styles.insert(TextStyle::Body, font.clone());
             style.text_styles.insert(TextStyle::Button, font.clone());
 
             ui.allocate_space(egui::vec2(width, 40.0));
             ui.spacing_mut().slider_width = ui.available_width();
 
-            ui.label("GAME SETTINGS");
+            if loading {
+                ui.label("LOADING...");
+                ui.label("");
+                ui.allocate_space(egui::vec2(width, height));
+                return;
+            }
+
             ui.label("");
             ui.label("MOUSE SENSITIVITY");
             let mut sens = fps_controller.sensitivity * 1000.0;
