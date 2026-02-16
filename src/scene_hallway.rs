@@ -1,10 +1,11 @@
 use avian3d::prelude::*;
 use bevy::{prelude::*, scene::SceneInstanceReady};
 use bevy_fps_controller::controller::{FpsController, LogicalPlayer};
+use bevy_seedling::prelude::*;
 
 use crate::{
     SceneContents, SceneState,
-    assets::SceneAssets,
+    assets::{AudioAssets, SceneAssets},
     cascade::{self, SceneBakeName},
     despawn_scene_contents,
     draw_debug::DebugLines,
@@ -48,6 +49,7 @@ pub fn load_hallway(
     mut next_state: ResMut<NextState<SceneState>>,
     mut state: ResMut<PlayerHallwayState>,
     assets: Res<SceneAssets>,
+    audio: Res<AudioAssets>,
 ) {
     #[cfg(feature = "asset_baking")]
     {
@@ -56,6 +58,14 @@ pub fn load_hallway(
     next_state.set(SceneState::Hallway);
     post_process.enable = true;
     *state = Default::default();
+
+    commands.spawn((
+        SamplePlayer::new(audio.hallway_music.clone())
+            .with_volume(Volume::Decibels(-8.0))
+            .looping(),
+        HallwayScene,
+        SceneContents,
+    ));
 
     let (mut player_trans, mut player_vel, mut player_ctrl) = player.into_inner();
     *player_trans =

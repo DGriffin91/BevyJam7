@@ -1,10 +1,11 @@
 use avian3d::prelude::*;
 use bevy::{prelude::*, scene::SceneInstanceReady};
 use bevy_fps_controller::controller::{FpsController, LogicalPlayer};
+use bevy_seedling::prelude::*;
 
 use crate::{
     SceneContents, SceneState,
-    assets::SceneAssets,
+    assets::{AudioAssets, SceneAssets},
     cascade::{self, SceneBakeName},
     despawn_scene_contents,
     physics::tri_mesh_collider,
@@ -43,6 +44,7 @@ pub fn load_falling(
     mut next_state: ResMut<NextState<SceneState>>,
     mut state: ResMut<PlayerFallingState>,
     assets: Res<SceneAssets>,
+    audio: Res<AudioAssets>,
 ) {
     #[cfg(feature = "asset_baking")]
     {
@@ -51,6 +53,14 @@ pub fn load_falling(
     next_state.set(SceneState::Falling);
     post_process.enable = false;
     *state = Default::default();
+
+    commands.spawn((
+        SamplePlayer::new(audio.end_music.clone())
+            .with_volume(Volume::Decibels(-8.0))
+            .looping(),
+        FallingScene,
+        SceneContents,
+    ));
 
     let (mut player_trans, mut player_vel, mut player_ctrl) = player.into_inner();
     *player_trans =
