@@ -22,7 +22,7 @@ pub fn menu_ui(
     mut contexts: EguiContexts,
     mut app_exit: MessageWriter<AppExit>,
     state: Res<State<SceneState>>,
-    #[cfg(feature = "asset_baking")] cascades: Query<Entity, With<CascadeData>>,
+    #[cfg(feature = "asset_baking")] cascades: Query<Entity, With<light_volume_baker::CascadeData>>,
     #[cfg(feature = "dev")] mut camera: Option<
         Single<&mut bevy::camera_controller::free_camera::FreeCameraState>,
     >,

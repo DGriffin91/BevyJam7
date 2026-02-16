@@ -99,7 +99,7 @@ pub fn load_underwater(
     sun.illuminance = 0.0;
     sun.shadows_enabled = false;
 
-    fog.fog_color = vec4(0.1, 0.2, 0.5, 1.0);
+    fog.fog_color = vec4(0.1, 0.2, 0.5, 0.02);
     fog.caustics = vec4(0.3, 0.6, 1.0, 1.0);
 
     commands

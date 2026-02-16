@@ -75,8 +75,8 @@ pub fn load_falling(
     sun.illuminance = 100000.0;
     sun.shadows_enabled = false;
 
-    fog.fog_color = vec4(0.0, 0.0, 0.0, 0.0);
-    fog.caustics = vec4(0.0, 0.0, 0.0, 0.0);
+    fog.fog_color = vec4(0.01, 0.015, 0.025, 0.002);
+    fog.caustics = vec4(70.0, 70.0, 70.0, 1.0);
 
     commands
         .spawn((
@@ -110,9 +110,12 @@ fn check_rings(
     mut commands: Commands,
     rings: Query<(Entity, &GlobalTransform), With<Ring>>,
     camera: Single<&GlobalTransform, With<Camera>>,
+    mut fog: ResMut<Fog>,
 ) {
+    let cam_pos = camera.translation();
+    fog.fog_color =
+        vec4(0.01, 0.015, 0.025, 0.01).lerp(vec4(0.02, 0.03, 0.05, 0.1), cam_pos.y / 600.0);
     for (entity, trans) in &rings {
-        let cam_pos = camera.translation();
         let ring_pos = trans.translation();
 
         if cam_pos.y < ring_pos.y {

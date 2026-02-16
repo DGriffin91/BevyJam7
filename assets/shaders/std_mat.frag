@@ -360,14 +360,15 @@ void main() {
 
     #ifdef THERES_FOG
     {
+        vec3 fog_solid_color = ub_fog_color.rgb;
         float seed = hash(screen_uv + hash(ub_frame - 123.456));
-        vec3 fog_color = sample_fog(3.0, seed, ub_fog_color.rgb, vec3(0.0, 1.0, 0.0), screen_uv, V);
+        vec3 fog_color = sample_fog(3.0, seed, fog_solid_color, vec3(0.0, 1.0, 0.0), screen_uv, V);
 
         float frag_dist = length(ub_view_position - ws_position);
-        float f = min(frag_dist * 0.02, 1.0);
+        float f = min(frag_dist * ub_fog_color.w, 1.0);
         output_color = fog_color * f + (1.0 - f) * output_color;
         float distance_fog = 0.5;
-        output_color += ub_fog_color.rgb * frag_dist * distance_fog;
+        output_color += fog_solid_color * frag_dist * distance_fog;
     }
     #endif // THERES_FOG
 

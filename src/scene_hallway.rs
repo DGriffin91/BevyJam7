@@ -80,7 +80,7 @@ pub fn load_hallway(
     sun.illuminance = 0.0;
     sun.shadows_enabled = false;
 
-    fog.fog_color = vec4(5.0, 5.0, 5.0, 1.0);
+    fog.fog_color = vec4(5.0, 5.0, 5.0, 0.02);
     fog.caustics = vec4(0.6, 0.0, 0.0, 0.0);
 
     commands
