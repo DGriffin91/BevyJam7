@@ -22,6 +22,10 @@ pub fn menu_ui(
     mut contexts: EguiContexts,
     mut app_exit: MessageWriter<AppExit>,
     state: Res<State<SceneState>>,
+    #[cfg(feature = "asset_baking")] cascades: Query<Entity, With<CascadeData>>,
+    #[cfg(feature = "dev")] mut camera: Option<
+        Single<&mut bevy::camera_controller::free_camera::FreeCameraState>,
+    >,
 ) {
     let mut window = window.into_inner();
     let mut fps_controller = fps_controller.into_inner();
@@ -35,6 +39,15 @@ pub fn menu_ui(
     let Ok(context) = contexts.ctx_mut() else {
         return;
     };
+
+    #[cfg(feature = "dev")]
+    {
+        let wants_input = context.wants_pointer_input() || context.wants_keyboard_input();
+        if let Some(camera) = &mut camera {
+            camera.enabled = !wants_input;
+        }
+    }
+
     let loading = matches!(state.get(), SceneState::Loading);
     egui::Window::new("SETTINGS")
         .fixed_pos(egui::Pos2::ZERO)
@@ -139,6 +152,49 @@ pub fn menu_ui(
             }
             if ui.button("EXIT GAME").clicked() {
                 app_exit.write(AppExit::Success);
+            }
+
+            #[cfg(feature = "dev")]
+            {
+                #[cfg(feature = "asset_baking")]
+                {
+                    use light_volume_baker::gpu_rt::NeedsGpuBake;
+                    use light_volume_baker::{NeedsCourseBake, NeedsFineBake};
+                    if ui.button("Rebake All").clicked() {
+                        for entity in &cascades {
+                            commands.entity(entity).insert((
+                                NeedsGpuBake,
+                                NeedsCourseBake,
+                                NeedsFineBake,
+                            ));
+                        }
+                    }
+                }
+                if ui.button("Load Store").clicked() {
+                    use crate::scene_store::load_store;
+                    commands.run_system_cached(despawn_scene_contents);
+                    commands.run_system_cached(load_store);
+                }
+                if ui.button("Load hallway").clicked() {
+                    use crate::scene_hallway::load_hallway;
+                    commands.run_system_cached(despawn_scene_contents);
+                    commands.run_system_cached(load_hallway);
+                }
+                if ui.button("Load Temple").clicked() {
+                    use crate::scene_temple::load_temple;
+                    commands.run_system_cached(despawn_scene_contents);
+                    commands.run_system_cached(load_temple);
+                }
+                if ui.button("Load Underwater").clicked() {
+                    use crate::scene_underwater::load_underwater;
+                    commands.run_system_cached(despawn_scene_contents);
+                    commands.run_system_cached(load_underwater);
+                }
+                if ui.button("Load Falling").clicked() {
+                    use crate::scene_falling::load_falling;
+                    commands.run_system_cached(despawn_scene_contents);
+                    commands.run_system_cached(load_falling);
+                }
             }
 
             ui.allocate_space(egui::vec2(width, height));

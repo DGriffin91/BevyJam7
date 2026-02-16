@@ -15,8 +15,7 @@ pub mod scene_underwater;
 pub mod std_mat_render;
 
 use argh::FromArgs;
-#[cfg(feature = "dev")]
-use bevy::camera_controller::free_camera::FreeCameraState;
+
 use bevy::{
     asset::AssetMetaCheck,
     camera_controller::free_camera::FreeCameraPlugin,
@@ -29,7 +28,7 @@ use bevy_asset_loader::loading_state::{
     LoadingState, LoadingStateAppExt, config::ConfigureLoadingState,
 };
 #[cfg(feature = "dev")]
-use bevy_egui::{EguiContexts, EguiPrimaryContextPass, egui};
+use bevy_egui::EguiPrimaryContextPass;
 
 #[cfg(not(target_arch = "wasm32"))]
 use bevy_mod_mipmap_generator::{MipmapGeneratorPlugin, generate_mipmaps};
@@ -216,7 +215,7 @@ fn main() {
             .in_set(RenderSet::Pipeline),
         );
         #[cfg(feature = "dev")]
-        app.add_systems(EguiPrimaryContextPass, (dev_ui, drag_drop_gltf));
+        app.add_systems(EguiPrimaryContextPass, drag_drop_gltf);
     }
 
     app.init_resource::<Fog>()
@@ -232,61 +231,6 @@ fn main() {
         .add_systems(Update, generate_mipmaps::<StandardMaterial>);
 
     app.run();
-}
-
-#[cfg(feature = "dev")]
-fn dev_ui(
-    mut commands: Commands,
-    mut contexts: EguiContexts,
-    #[cfg(feature = "asset_baking")] cascades: Query<Entity, With<CascadeData>>,
-    mut camera: Option<Single<&mut FreeCameraState>>,
-) {
-    if let Ok(ctx) = contexts.ctx_mut() {
-        let wants_input = ctx.wants_pointer_input() || ctx.wants_keyboard_input();
-        if let Some(camera) = &mut camera {
-            camera.enabled = !wants_input;
-        }
-    }
-
-    egui::Window::new("Dev Utils").show(contexts.ctx_mut().unwrap(), |ui| {
-        #[cfg(feature = "asset_baking")]
-        {
-            use light_volume_baker::gpu_rt::NeedsGpuBake;
-            use light_volume_baker::{NeedsCourseBake, NeedsFineBake};
-            if ui.button("Rebake All").clicked() {
-                for entity in &cascades {
-                    commands
-                        .entity(entity)
-                        .insert((NeedsGpuBake, NeedsCourseBake, NeedsFineBake));
-                }
-            }
-        }
-        if ui.button("Load Store").clicked() {
-            use crate::scene_store::load_store;
-            commands.run_system_cached(despawn_scene_contents);
-            commands.run_system_cached(load_store);
-        }
-        if ui.button("Load hallway").clicked() {
-            use crate::scene_hallway::load_hallway;
-            commands.run_system_cached(despawn_scene_contents);
-            commands.run_system_cached(load_hallway);
-        }
-        if ui.button("Load Temple").clicked() {
-            use crate::scene_temple::load_temple;
-            commands.run_system_cached(despawn_scene_contents);
-            commands.run_system_cached(load_temple);
-        }
-        if ui.button("Load Underwater").clicked() {
-            use crate::scene_underwater::load_underwater;
-            commands.run_system_cached(despawn_scene_contents);
-            commands.run_system_cached(load_underwater);
-        }
-        if ui.button("Load Falling").clicked() {
-            use crate::scene_falling::load_falling;
-            commands.run_system_cached(despawn_scene_contents);
-            commands.run_system_cached(load_falling);
-        }
-    });
 }
 
 fn setup(mut commands: Commands) {

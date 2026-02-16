@@ -46,4 +46,9 @@ pub struct AudioAssets {
     pub store_music: Handle<AudioSample>,
     #[asset(path = "audio/store_ramp.ogg")]
     pub store_ramp: Handle<AudioSample>,
+
+    #[asset(path = "audio/underwater_music.ogg")]
+    pub underwater_music: Handle<AudioSample>,
+    #[asset(path = "audio/underwater_beam.ogg")]
+    pub underwater_beam: Handle<AudioSample>,
 }

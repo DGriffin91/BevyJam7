@@ -1,10 +1,13 @@
+use core::f32;
+
 use avian3d::prelude::*;
 use bevy::{prelude::*, scene::SceneInstanceReady};
 use bevy_fps_controller::controller::{FpsController, LogicalPlayer};
+use bevy_seedling::prelude::*;
 
 use crate::{
     SceneContents, SceneState,
-    assets::SceneAssets,
+    assets::{AudioAssets, SceneAssets},
     cascade::{self, SceneBakeName},
     despawn_scene_contents,
     physics::tri_mesh_collider,
@@ -34,6 +37,9 @@ pub struct PlayerUnderwaterState {}
 #[derive(Component)]
 pub struct UnderwaterScene;
 
+#[derive(PoolLabel, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct UnderwaterBeamSfx;
+
 pub fn load_underwater(
     mut commands: Commands,
     mut fog: ResMut<Fog>,
@@ -47,6 +53,7 @@ pub fn load_underwater(
     mut state: ResMut<PlayerUnderwaterState>,
     mut clear: ResMut<ClearColor>,
     assets: Res<SceneAssets>,
+    audio: Res<AudioAssets>,
 ) {
     #[cfg(feature = "asset_baking")]
     {
@@ -55,6 +62,28 @@ pub fn load_underwater(
     next_state.set(SceneState::Underwater);
     post_process.enable = false;
     *state = Default::default();
+
+    commands.spawn((
+        SamplePlayer::new(audio.underwater_music.clone())
+            .with_volume(Volume::Decibels(-8.0))
+            .looping(),
+        UnderwaterScene,
+        SceneContents,
+    ));
+    commands.spawn((
+        SamplePlayer::new(audio.underwater_beam.clone())
+            .with_volume(Volume::Decibels(-20.0))
+            .looping(),
+        UnderwaterScene,
+        SceneContents,
+        UnderwaterBeamSfx,
+    ));
+    commands.spawn((
+        SamplerPool(UnderwaterBeamSfx),
+        UnderwaterScene,
+        SceneContents,
+    ));
+
     clear.0 = Color::srgb(0.25, 0.3, 0.4);
 
     let (mut player_trans, mut player_vel, mut player_ctrl) = player.into_inner();
@@ -189,11 +218,13 @@ fn move_searchlights(
     camera: Single<&GlobalTransform, With<Camera>>,
     time: Res<Time>,
     mut commands: Commands,
+    mut beam_sfx: Single<&mut VolumeNode, With<SamplerPool<UnderwaterBeamSfx>>>,
 ) {
     let camera_pos = camera.translation();
     let sweep_speed = 0.3;
     let phase_strength = 1.0;
     let sweep_distance = 100.0;
+    let mut closest_light_beam = f32::INFINITY;
     for (parent, light_global, mut light_trans, search_light) in &mut search_lights {
         let z = SWEEP_REGIONS[search_light.index as usize];
         let ws_aim_point = vec3(
@@ -211,7 +242,10 @@ fn move_searchlights(
         let desired_global = Transform::IDENTITY.looking_to(ws_dir, Vec3::Y).rotation;
         let parent_global_rot = parents.get(parent.0).unwrap().rotation();
         light_trans.rotation = parent_global_rot.inverse() * desired_global;
+        closest_light_beam =
+            closest_light_beam.min(angle_from_cone_center(camera_pos, ws_light_pos, ws_dir));
     }
+    beam_sfx.volume = Volume::Decibels((24.0 - closest_light_beam.to_degrees() * 3.0).min(6.0));
 }
 
 #[derive(Component, Clone, Debug, Default)]
@@ -276,4 +310,16 @@ fn point_in_cone(p: Vec3, origin: Vec3, normal: Vec3, opening: f32) -> bool {
     let half_angle_rad = opening * 0.5;
     let cos_half = half_angle_rad.cos();
     dir.dot(normal) >= cos_half
+}
+
+fn angle_from_cone_center(p: Vec3, origin: Vec3, normal: Vec3) -> f32 {
+    let v = p - origin;
+    let v_len = v.length();
+    if v_len <= 1e-8 {
+        return 0.0;
+    }
+    let dir = v / v_len;
+    let axis = normal.normalize();
+    let cos_theta = dir.dot(axis).clamp(-1.0, 1.0);
+    cos_theta.acos()
 }
