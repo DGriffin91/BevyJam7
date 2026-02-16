@@ -1,3 +1,4 @@
+use bevy_seedling::prelude::*;
 use std::f32::consts::PI;
 
 use avian3d::prelude::*;
@@ -30,7 +31,7 @@ impl Plugin for StoreSceneGameplayPlugin {
 
 use crate::{
     SceneContents, SceneState,
-    assets::SceneAssets,
+    assets::{AudioAssets, SceneAssets},
     cascade::{self, SceneBakeName},
     despawn_scene_contents,
     draw_debug::DebugLines,
@@ -55,6 +56,7 @@ pub fn load_store(
     mut state: ResMut<PlayerStoreState>,
     mut next_state: ResMut<NextState<SceneState>>,
     assets: Res<SceneAssets>,
+    audio: Res<AudioAssets>,
 ) {
     #[cfg(feature = "asset_baking")]
     {
@@ -63,6 +65,14 @@ pub fn load_store(
     next_state.set(SceneState::Store);
     post_process.enable = false;
     *state = Default::default();
+
+    commands.spawn((
+        SamplePlayer::new(audio.store_music.clone())
+            .with_volume(Volume::Decibels(-8.0))
+            .looping(),
+        StoreScene,
+        SceneContents,
+    ));
 
     let (mut player_trans, mut player_vel, mut player_ctrl) = player.into_inner();
     *player_trans =
@@ -382,7 +392,9 @@ fn timed_events(
     shelves: Query<(Entity, &Transform, &StoreShelf)>,
     mut graphs: ResMut<Assets<AnimationGraph>>,
     assets: Res<SceneAssets>,
+    audio: Res<AudioAssets>,
     asset_server: Res<AssetServer>,
+    mut started_ramp: Local<bool>,
 ) {
     if state.boxes_in_aisle < 25 {
         state.timer += time.delta_secs();
@@ -396,10 +408,22 @@ fn timed_events(
     let shelves_swap_start = 4.0;
     let spawn_big_box = shelves_swap_start + 20.0;
 
+    let mut played_this_frame = false;
+
     if state.timer > shelves_swap_start && !shelves.is_empty() {
         let shelf = &assets.store_mac_shelf;
         for (shelf_entity, shelf_trans, shelf_index) in &shelves {
             if (state.timer - shelves_swap_start) * 3.0 > shelf_index.0 as f32 {
+                if !played_this_frame {
+                    played_this_frame = true;
+                    let vol = (state.timer - shelves_swap_start) * 0.25 - 18.0;
+                    commands.spawn((
+                        SamplePlayer::new(audio.chug.clone()).with_volume(Volume::Decibels(vol)),
+                        StoreScene,
+                        SceneContents,
+                    ));
+                }
+
                 commands.entity(shelf_entity).despawn();
                 commands
                     .spawn((
@@ -412,6 +436,15 @@ fn timed_events(
                     .observe(convex_hull_collider);
             }
         }
+    }
+
+    if state.timer > shelves_swap_start && shelves.is_empty() && !*started_ramp {
+        commands.spawn((
+            SamplePlayer::new(audio.store_ramp.clone()).with_volume(Volume::Decibels(-12.0)),
+            StoreScene,
+            SceneContents,
+        ));
+        *started_ramp = true;
     }
 
     if !state.big_box_has_been_spawned && state.timer > spawn_big_box {
@@ -434,6 +467,11 @@ fn timed_events(
                 SceneContents,
             ))
             .observe(play_animation_when_ready);
+        commands.spawn((
+            SamplePlayer::new(audio.big_box.clone()).with_volume(Volume::Decibels(-12.0)),
+            StoreScene,
+            SceneContents,
+        ));
     }
 }
 

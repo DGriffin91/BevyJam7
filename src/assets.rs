@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy_asset_loader::asset_collection::AssetCollection;
+use bevy_seedling::sample::AudioSample;
 
 #[derive(AssetCollection, Resource)]
 pub struct SceneAssets {
@@ -33,4 +34,16 @@ pub struct SceneAssets {
     pub underwater_airship: Handle<Scene>,
     #[asset(path = "models/underwater_collider_mesh.gltf#Scene0")]
     pub underwater_collider_mesh: Handle<Scene>,
+}
+
+#[derive(AssetCollection, Resource)]
+pub struct AudioAssets {
+    #[asset(path = "audio/chug.ogg")]
+    pub chug: Handle<AudioSample>,
+    #[asset(path = "audio/big_box.ogg")]
+    pub big_box: Handle<AudioSample>,
+    #[asset(path = "audio/store_music.ogg")]
+    pub store_music: Handle<AudioSample>,
+    #[asset(path = "audio/store_ramp.ogg")]
+    pub store_ramp: Handle<AudioSample>,
 }

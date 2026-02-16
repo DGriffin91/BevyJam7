@@ -57,7 +57,7 @@ use light_volume_baker::{
 };
 
 use crate::{
-    assets::SceneAssets,
+    assets::{AudioAssets, SceneAssets},
     cascade::ConvertCascadePlugin,
     draw_debug::DrawDebugPlugin,
     menu::MenuPlugin,
@@ -173,7 +173,8 @@ fn main() {
             .add_loading_state(
                 LoadingState::new(SceneState::Loading)
                     .continue_to_state(SceneState::Loaded)
-                    .load_collection::<SceneAssets>(),
+                    .load_collection::<SceneAssets>()
+                    .load_collection::<AudioAssets>(),
             )
             .init_resource::<DrawsSortedByMaterial>()
             .add_plugins((
